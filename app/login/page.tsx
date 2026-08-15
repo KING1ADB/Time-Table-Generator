@@ -1,10 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import { Calendar, Lock, Mail, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,7 +21,7 @@ export default function LoginPage() {
 
     try {
       const res = await signIn('credentials', {
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         password,
         redirect: false,
       });
@@ -28,24 +32,31 @@ export default function LoginPage() {
         return;
       }
 
-      // Check session role for redirect
+      // Fetch session role for redirect
       const sessionRes = await fetch('/api/auth/session');
       const session = await sessionRes.json();
 
       const userRole = session?.user?.role;
-      if (userRole === 'SUPER_ADMIN') {
-        window.location.href = '/admin';
-      } else {
-        window.location.href = '/school';
+      let targetUrl = callbackUrl;
+
+      if (!targetUrl || targetUrl === '/login') {
+        targetUrl = userRole === 'SUPER_ADMIN' ? '/admin' : '/school';
       }
+
+      if (userRole !== 'SUPER_ADMIN' && targetUrl.startsWith('/admin')) {
+        targetUrl = '/school';
+      }
+
+      window.location.href = targetUrl;
     } catch (err: any) {
-      // Check session in case NextAuth threw after success
       try {
         const sessionRes = await fetch('/api/auth/session');
         const session = await sessionRes.json();
 
         if (session?.user) {
-          window.location.href = session?.user?.role === 'SUPER_ADMIN' ? '/admin' : '/school';
+          const userRole = session.user.role;
+          let targetUrl = callbackUrl || (userRole === 'SUPER_ADMIN' ? '/admin' : '/school');
+          window.location.href = targetUrl;
           return;
         }
       } catch (_) {}
@@ -61,6 +72,107 @@ export default function LoginPage() {
     setError('');
   };
 
+  return (
+    <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-8 shadow-2xl backdrop-blur-xl">
+      {error && (
+        <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-3">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+            Email Address
+          </label>
+          <div className="relative">
+            <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="principal@mboacollege.cm"
+              className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+            Password
+          </label>
+          <div className="relative">
+            <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••••••"
+              className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-3.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Authenticating...
+            </>
+          ) : (
+            <>
+              Sign In to Dashboard <ArrowRight className="w-4 h-4" />
+            </>
+          )}
+        </button>
+      </form>
+
+      {/* Quick Seed Credentials Card */}
+      <div className="mt-8 pt-6 border-t border-slate-800/80">
+        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">
+          ⚡ Quick Test Credentials
+        </p>
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => fillCredentials('principal@mboacollege.cm', 'MboaCollege2026!')}
+            className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 text-left hover:border-slate-700 transition-colors flex items-center justify-between text-xs"
+          >
+            <div>
+              <span className="text-white font-medium block">Mboa College Admin</span>
+              <span className="text-slate-500 text-[10px]">principal@mboacollege.cm</span>
+            </div>
+            <span className="text-[10px] text-blue-400 font-semibold bg-blue-500/10 px-2 py-0.5 rounded">
+              Fill
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => fillCredentials('admin@timetabler.cm', 'AdminPass123!')}
+            className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 text-left hover:border-slate-700 transition-colors flex items-center justify-between text-xs"
+          >
+            <div>
+              <span className="text-white font-medium block">System Super Admin</span>
+              <span className="text-slate-500 text-[10px]">admin@timetabler.cm</span>
+            </div>
+            <span className="text-[10px] text-purple-400 font-semibold bg-purple-500/10 px-2 py-0.5 rounded">
+              Fill
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function LoginPage() {
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-slate-100 font-sans relative overflow-hidden">
       {/* Background Glow */}
@@ -78,103 +190,9 @@ export default function LoginPage() {
           <p className="text-xs text-slate-400 mt-1">Sign in to your School Admin or System Portal</p>
         </div>
 
-        {/* Login Card */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-8 shadow-2xl backdrop-blur-xl">
-          {error && (
-            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-3">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="principal@mboacollege.cm"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Authenticating...
-                </>
-              ) : (
-                <>
-                  Sign In to Dashboard <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Quick Seed Credentials Card */}
-          <div className="mt-8 pt-6 border-t border-slate-800/80">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">
-              ⚡ Quick Test Credentials
-            </p>
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => fillCredentials('principal@mboacollege.cm', 'MboaCollege2026!')}
-                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 text-left hover:border-slate-700 transition-colors flex items-center justify-between text-xs"
-              >
-                <div>
-                  <span className="text-white font-medium block">Mboa College Admin</span>
-                  <span className="text-slate-500 text-[10px]">principal@mboacollege.cm</span>
-                </div>
-                <span className="text-[10px] text-blue-400 font-semibold bg-blue-500/10 px-2 py-0.5 rounded">
-                  Fill
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => fillCredentials('admin@timetabler.cm', 'AdminPass123!')}
-                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 text-left hover:border-slate-700 transition-colors flex items-center justify-between text-xs"
-              >
-                <div>
-                  <span className="text-white font-medium block">System Super Admin</span>
-                  <span className="text-slate-500 text-[10px]">admin@timetabler.cm</span>
-                </div>
-                <span className="text-[10px] text-purple-400 font-semibold bg-purple-500/10 px-2 py-0.5 rounded">
-                  Fill
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
+        <Suspense fallback={<div className="p-8 text-center text-slate-400">Loading portal...</div>}>
+          <LoginForm />
+        </Suspense>
       </div>
     </div>
   );

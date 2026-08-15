@@ -12,6 +12,7 @@ export async function middleware(req: NextRequest) {
     const token = await getToken({
       req,
       secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'super-secret-random-32-character-key-here',
+      secureCookie: process.env.NODE_ENV === 'production',
     });
 
     // Unauthenticated -> redirect to /login
