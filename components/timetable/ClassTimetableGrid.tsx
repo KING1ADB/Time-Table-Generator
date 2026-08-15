@@ -1,7 +1,10 @@
 'use client';
 
-import { Lock, Unlock, School, MapPin, User, Coffee } from 'lucide-react';
+import { useState } from 'react';
+import { Lock, Unlock, School, MapPin, User, GripVertical } from 'lucide-react';
 import { DisplayMode } from './ViewToggle';
+import EditSlotModal from './EditSlotModal';
+import { validateSlotMove } from '@/lib/timetable/conflictEngine';
 
 interface ClassTimetableGridProps {
   selectedSectionId: string;
@@ -11,11 +14,18 @@ interface ClassTimetableGridProps {
   periods: { id: string; periodNumber: number; startTime: string; endTime: string }[];
   breaks: { id: string; name: string; startTime: string; endTime: string }[];
   entries: any[];
+  rooms: { id: string; name: string; isLab: boolean }[];
   displayMode: DisplayMode;
-  onToggleLock?: (entryId: string) => void;
+  onToggleLock: (entryId: string, isLocked: boolean) => Promise<void>;
+  onUpdateRoom: (entryId: string, roomId: string | null) => Promise<void>;
+  onMoveOrSwapEntry: (
+    sourceEntryId: string,
+    targetDay: string,
+    targetPeriodSlotId: string
+  ) => Promise<{ success: boolean; error?: string; conflicts?: string[] }>;
+  onConflictAlert?: (conflicts: string[]) => void;
 }
 
-// Subject badge color palette generator
 const SUBJECT_COLORS = [
   'bg-emerald-500/15 border-emerald-500/30 text-emerald-300',
   'bg-indigo-500/15 border-indigo-500/30 text-indigo-300',
@@ -44,9 +54,16 @@ export default function ClassTimetableGrid({
   periods,
   breaks,
   entries,
+  rooms,
   displayMode,
   onToggleLock,
+  onUpdateRoom,
+  onMoveOrSwapEntry,
+  onConflictAlert,
 }: ClassTimetableGridProps) {
+  const [selectedEntryForEdit, setSelectedEntryForEdit] = useState<any | null>(null);
+  const [draggedEntry, setDraggedEntry] = useState<any | null>(null);
+
   // Filter entries for the selected class section
   const sectionEntries = entries.filter((e) => e.classSectionId === selectedSectionId);
 
@@ -57,6 +74,54 @@ export default function ClassTimetableGrid({
   }
 
   const selectedSection = classSections.find((s) => s.id === selectedSectionId);
+
+  // Drag and Drop Handlers
+  function handleDragStart(e: React.DragEvent, entry: any) {
+    if (entry.isLocked) {
+      e.preventDefault();
+      return;
+    }
+    setDraggedEntry(entry);
+    e.dataTransfer.setData('text/plain', entry.id);
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }
+
+  async function handleDrop(e: React.DragEvent, targetDay: string, targetPeriodSlotId: string) {
+    e.preventDefault();
+    if (!draggedEntry) return;
+
+    if (draggedEntry.day === targetDay && draggedEntry.periodSlotId === targetPeriodSlotId) {
+      setDraggedEntry(null);
+      return;
+    }
+
+    // Perform client-side diagnostic check
+    const diagnostic = validateSlotMove(
+      entries,
+      draggedEntry,
+      targetDay,
+      targetPeriodSlotId,
+      draggedEntry.roomId
+    );
+
+    if (!diagnostic.isValid) {
+      if (onConflictAlert) {
+        onConflictAlert(diagnostic.conflicts);
+      }
+    }
+
+    const result = await onMoveOrSwapEntry(draggedEntry.id, targetDay, targetPeriodSlotId);
+    if (!result.success && result.conflicts && onConflictAlert) {
+      onConflictAlert(result.conflicts);
+    }
+
+    setDraggedEntry(null);
+  }
 
   return (
     <div className="space-y-4">
@@ -70,7 +135,9 @@ export default function ClassTimetableGrid({
             <h2 className="text-base font-bold text-white">
               {selectedSection?.name || 'Select Class Stream'}
             </h2>
-            <p className="text-xs text-slate-400">Class Section Weekly Schedule</p>
+            <p className="text-xs text-slate-400">
+              Interactive Grid: Drag slots to swap/move lessons. Click cell to edit or lock.
+            </p>
           </div>
         </div>
 
@@ -93,7 +160,7 @@ export default function ClassTimetableGrid({
       {/* Timetable Grid Table */}
       <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[700px]">
+          <table className="w-full text-left border-collapse min-w-[750px]">
             <thead>
               <tr className="bg-slate-950 border-b border-slate-800 text-xs font-semibold text-slate-300">
                 <th className="py-3 px-4 w-32 border-r border-slate-800 text-slate-400">
@@ -107,131 +174,146 @@ export default function ClassTimetableGrid({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 text-xs">
-              {periods.map((period, pIdx) => {
-                // Check if a break occurs right before or after this period
-                const matchingBreak = breaks.find((b) => b.startTime === period.endTime);
+              {periods.map((period, pIdx) => (
+                <tr key={period.id} className="hover:bg-slate-850/40 transition-colors">
+                  <td className="p-3 border-r border-slate-800 bg-slate-950/60 text-slate-400 font-medium align-middle">
+                    <span className="block font-bold text-white text-sm">
+                      Period {period.periodNumber}
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      {period.startTime} – {period.endTime}
+                    </span>
+                  </td>
 
-                return (
-                  <tr key={period.id} className="hover:bg-slate-850/40 transition-colors">
-                    {/* Period Slot Label */}
-                    <td className="p-3 border-r border-slate-800 bg-slate-950/60 text-slate-400 font-medium align-middle">
-                      <span className="block font-bold text-white text-sm">
-                        Period {period.periodNumber}
-                      </span>
-                      <span className="text-[11px] text-slate-400">
-                        {period.startTime} – {period.endTime}
-                      </span>
-                    </td>
+                  {days.map((d) => {
+                    const entry = entryMap[`${d.day}_${period.id}`];
 
-                    {/* Day Columns */}
-                    {days.map((d) => {
-                      const entry = entryMap[`${d.day}_${period.id}`];
+                    // Merge check in UNIFIED mode
+                    if (displayMode === 'UNIFIED' && pIdx > 0) {
+                      const prevPeriod = periods[pIdx - 1];
+                      const prevEntry = entryMap[`${d.day}_${prevPeriod.id}`];
+                      if (
+                        entry &&
+                        prevEntry &&
+                        entry.teachingAssignmentId === prevEntry.teachingAssignmentId &&
+                        entry.roomId === prevEntry.roomId
+                      ) {
+                        return null;
+                      }
+                    }
 
-                      // Check for double period merging in UNIFIED mode
-                      if (displayMode === 'UNIFIED' && pIdx > 0) {
-                        const prevPeriod = periods[pIdx - 1];
-                        const prevEntry = entryMap[`${d.day}_${prevPeriod.id}`];
+                    let rowSpan = 1;
+                    if (displayMode === 'UNIFIED' && entry) {
+                      for (let k = pIdx + 1; k < periods.length; k++) {
+                        const nextP = periods[k];
+                        const nextE = entryMap[`${d.day}_${nextP.id}`];
                         if (
-                          entry &&
-                          prevEntry &&
-                          entry.teachingAssignmentId === prevEntry.teachingAssignmentId &&
-                          entry.roomId === prevEntry.roomId
+                          nextE &&
+                          nextE.teachingAssignmentId === entry.teachingAssignmentId &&
+                          nextE.roomId === entry.roomId
                         ) {
-                          // Cell merged with period above
-                          return null;
+                          rowSpan++;
+                        } else {
+                          break;
                         }
                       }
+                    }
 
-                      // Check how many consecutive identical periods follow (rowSpan)
-                      let rowSpan = 1;
-                      if (displayMode === 'UNIFIED' && entry) {
-                        for (let k = pIdx + 1; k < periods.length; k++) {
-                          const nextP = periods[k];
-                          const nextE = entryMap[`${d.day}_${nextP.id}`];
-                          if (
-                            nextE &&
-                            nextE.teachingAssignmentId === entry.teachingAssignmentId &&
-                            nextE.roomId === entry.roomId
-                          ) {
-                            rowSpan++;
-                          } else {
-                            break;
-                          }
-                        }
-                      }
+                    const subject = entry?.teachingAssignment?.subject;
+                    const teacher = entry?.teachingAssignment?.teacher;
+                    const room = entry?.room;
+                    const colorStyle = entry ? getSubjectColor(subject?.name) : '';
 
-                      const subject = entry?.teachingAssignment?.subject;
-                      const teacher = entry?.teachingAssignment?.teacher;
-                      const room = entry?.room;
-                      const colorStyle = entry ? getSubjectColor(subject?.name) : '';
-
-                      return (
-                        <td
-                          key={d.day}
-                          rowSpan={rowSpan}
-                          className="p-2 border-r border-slate-800 align-top h-24"
-                        >
-                          {entry ? (
-                            <div
-                              className={`h-full p-2.5 rounded-lg border flex flex-col justify-between transition-all hover:scale-[1.01] ${colorStyle}`}
-                            >
-                              <div className="space-y-1">
-                                <div className="flex items-center justify-between gap-1">
-                                  <span className="font-bold text-sm tracking-tight line-clamp-1">
-                                    {subject?.name}
-                                  </span>
-                                  {onToggleLock && (
-                                    <button
-                                      type="button"
-                                      onClick={() => onToggleLock(entry.id)}
-                                      title={entry.isLocked ? 'Locked (Click to unlock)' : 'Unlocked (Click to lock)'}
-                                      className={`p-1 rounded hover:bg-slate-800/60 transition-colors ${
-                                        entry.isLocked ? 'text-amber-400 font-bold' : 'text-slate-500 hover:text-slate-300'
-                                      }`}
-                                    >
-                                      {entry.isLocked ? (
-                                        <Lock className="w-3.5 h-3.5" />
-                                      ) : (
-                                        <Unlock className="w-3.5 h-3.5" />
-                                      )}
-                                    </button>
+                    return (
+                      <td
+                        key={d.day}
+                        rowSpan={rowSpan}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, d.day, period.id)}
+                        className="p-2 border-r border-slate-800 align-top h-24 transition-colors"
+                      >
+                        {entry ? (
+                          <div
+                            draggable={!entry.isLocked}
+                            onDragStart={(e) => handleDragStart(e, entry)}
+                            onClick={() => setSelectedEntryForEdit(entry)}
+                            className={`h-full p-2.5 rounded-lg border flex flex-col justify-between cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg ${colorStyle} ${
+                              entry.isLocked ? 'ring-1 ring-amber-500/50' : 'hover:border-white/40'
+                            }`}
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="font-bold text-sm tracking-tight line-clamp-1 flex items-center gap-1">
+                                  {!entry.isLocked && (
+                                    <GripVertical className="w-3 h-3 text-slate-400 opacity-60 shrink-0 cursor-grab" />
                                   )}
-                                </div>
-                                <span className="inline-block text-[10px] font-mono opacity-80 uppercase px-1.5 py-0.5 rounded bg-black/20">
-                                  {subject?.code}
+                                  {subject?.name}
                                 </span>
-                              </div>
 
-                              <div className="pt-2 space-y-1 border-t border-white/10 text-[11px] font-medium opacity-90">
-                                {teacher && (
-                                  <div className="flex items-center gap-1.5">
-                                    <User className="w-3 h-3 shrink-0" />
-                                    <span className="truncate">{teacher.name}</span>
-                                  </div>
-                                )}
-                                {room && (
-                                  <div className="flex items-center gap-1.5">
-                                    <MapPin className="w-3 h-3 shrink-0" />
-                                    <span className="truncate">{room.name}</span>
-                                  </div>
-                                )}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggleLock(entry.id, !entry.isLocked);
+                                  }}
+                                  title={entry.isLocked ? 'Locked (Click to unlock)' : 'Unlocked (Click to lock)'}
+                                  className={`p-1 rounded hover:bg-slate-800/60 transition-colors ${
+                                    entry.isLocked ? 'text-amber-400 font-bold' : 'text-slate-500 hover:text-slate-300'
+                                  }`}
+                                >
+                                  {entry.isLocked ? (
+                                    <Lock className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <Unlock className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
                               </div>
+                              <span className="inline-block text-[10px] font-mono opacity-80 uppercase px-1.5 py-0.5 rounded bg-black/20">
+                                {subject?.code}
+                              </span>
                             </div>
-                          ) : (
-                            <div className="h-full rounded-lg border border-dashed border-slate-800 flex items-center justify-center text-slate-600 text-[11px] bg-slate-950/20">
-                              Free Slot
+
+                            <div className="pt-2 space-y-1 border-t border-white/10 text-[11px] font-medium opacity-90">
+                              {teacher && (
+                                <div className="flex items-center gap-1.5">
+                                  <User className="w-3 h-3 shrink-0" />
+                                  <span className="truncate">{teacher.name}</span>
+                                </div>
+                              )}
+                              {room && (
+                                <div className="flex items-center gap-1.5">
+                                  <MapPin className="w-3 h-3 shrink-0" />
+                                  <span className="truncate">{room.name}</span>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
+                          </div>
+                        ) : (
+                          <div className="h-full rounded-lg border border-dashed border-slate-800 flex items-center justify-center text-slate-600 text-[11px] bg-slate-950/20 hover:border-slate-700 transition-colors">
+                            Drop Here / Free
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Edit Slot Modal */}
+      {selectedEntryForEdit && (
+        <EditSlotModal
+          isOpen={!!selectedEntryForEdit}
+          onClose={() => setSelectedEntryForEdit(null)}
+          entry={selectedEntryForEdit}
+          rooms={rooms}
+          onToggleLock={onToggleLock}
+          onUpdateRoom={onUpdateRoom}
+        />
+      )}
     </div>
   );
 }

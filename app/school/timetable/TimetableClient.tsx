@@ -1,12 +1,17 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { generateTimetableAction, toggleEntryLockAction } from '@/lib/actions/timetableActions';
+import { generateTimetableAction } from '@/lib/actions/timetableActions';
+import {
+  moveOrSwapEntryAction,
+  toggleEntryLockAction,
+  updateEntryRoomAction,
+} from '@/lib/actions/manualEditActions';
 import ViewToggle, { ViewTab, DisplayMode } from '@/components/timetable/ViewToggle';
 import ClassTimetableGrid from '@/components/timetable/ClassTimetableGrid';
 import TeacherTimetableGrid from '@/components/timetable/TeacherTimetableGrid';
 import MasterTimetableGrid from '@/components/timetable/MasterTimetableGrid';
-import { Zap, CheckCircle2, AlertTriangle, RefreshCw, Calendar, Lock } from 'lucide-react';
+import { Zap, CheckCircle2, AlertTriangle, RefreshCw, Calendar, Lock, X } from 'lucide-react';
 
 interface TimetableClientProps {
   schoolId: string;
@@ -21,6 +26,7 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
 
   const classSections = initialData.classSections || [];
   const teachers = initialData.teachers || [];
+  const rooms = initialData.rooms || [];
   const days = initialData.academicYear?.days || [];
   const periods = initialData.academicYear?.periods || [];
   const breaks = initialData.academicYear?.breaks || [];
@@ -41,8 +47,11 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
     diagnostics?: string[];
   } | null>(null);
 
+  const [conflictAlerts, setConflictAlerts] = useState<string[]>([]);
+
   function handleGenerate() {
     setStatusMessage(null);
+    setConflictAlerts([]);
     startTransition(async () => {
       const res = await generateTimetableAction(schoolId);
       if (res.success) {
@@ -62,10 +71,45 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
     });
   }
 
-  function handleToggleLock(entryId: string) {
+  async function handleToggleLock(entryId: string, isLocked: boolean) {
     startTransition(async () => {
-      await toggleEntryLockAction(entryId);
+      await toggleEntryLockAction(entryId, isLocked);
     });
+  }
+
+  async function handleUpdateRoom(entryId: string, roomId: string | null) {
+    startTransition(async () => {
+      await updateEntryRoomAction(entryId, roomId);
+    });
+  }
+
+  async function handleMoveOrSwap(
+    sourceEntryId: string,
+    targetDay: string,
+    targetPeriodSlotId: string
+  ) {
+    setConflictAlerts([]);
+    let response: { success: boolean; error?: string; conflicts?: string[] } = { success: false };
+
+    await new Promise<void>((resolve) => {
+      startTransition(async () => {
+        const res = await moveOrSwapEntryAction(
+          schoolId,
+          sourceEntryId,
+          targetDay,
+          targetPeriodSlotId
+        );
+        response = res;
+        if (!res.success && res.conflicts) {
+          setConflictAlerts(res.conflicts);
+        } else if (!res.success && res.error) {
+          setConflictAlerts([res.error]);
+        }
+        resolve();
+      });
+    });
+
+    return response;
   }
 
   const lockedCount = entries.filter((e: any) => e.isLocked).length;
@@ -85,7 +129,7 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
             )}
           </div>
           <p className="text-slate-400 text-xs mt-1">
-            Automated CP-SAT constraint satisfaction schedule solver & interactive timetable grid viewer
+            Automated CP-SAT constraint solver, drag-and-drop manual editor, real-time conflict detector & granular locking (🔒)
           </p>
         </div>
 
@@ -117,6 +161,28 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
           </button>
         </div>
       </div>
+
+      {/* Conflict Toast Alert Banner */}
+      {conflictAlerts.length > 0 && (
+        <div className="p-4 rounded-xl border bg-amber-950/60 border-amber-500/40 text-amber-200 space-y-2 relative animate-fadeIn">
+          <button
+            type="button"
+            onClick={() => setConflictAlerts([])}
+            className="absolute top-3 right-3 text-amber-400 hover:text-white p-1 rounded"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <div className="flex items-center gap-2 font-bold text-sm text-amber-300">
+            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+            <span>Conflict Diagnostic Alert — Manual Move Prevented</span>
+          </div>
+          <div className="space-y-1 text-xs text-amber-200 pl-7">
+            {conflictAlerts.map((c, idx) => (
+              <p key={idx}>• {c}</p>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Status Alert Notification */}
       {statusMessage && (
@@ -180,8 +246,12 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
               periods={periods}
               breaks={breaks}
               entries={entries}
+              rooms={rooms}
               displayMode={displayMode}
               onToggleLock={handleToggleLock}
+              onUpdateRoom={handleUpdateRoom}
+              onMoveOrSwapEntry={handleMoveOrSwap}
+              onConflictAlert={setConflictAlerts}
             />
           )}
 
