@@ -7,6 +7,7 @@ import {
   Users,
   ClipboardList,
   GraduationCap,
+  Calendar,
 } from 'lucide-react';
 
 const navItems = [
@@ -16,7 +17,9 @@ const navItems = [
   { href: '/school/subjects-rooms', label: 'Subjects & Rooms', icon: BookOpen },
   { href: '/school/teachers', label: 'Teachers & Availability', icon: Users },
   { href: '/school/assignments', label: 'Teaching Assignments', icon: ClipboardList },
+  { href: '/school/timetable', label: 'Generated Timetable', icon: Calendar },
 ];
+
 
 export default function SchoolLayout({ children }: { children: React.ReactNode }) {
   return (
