@@ -1,12 +1,38 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { provisionSchoolAction, toggleSchoolStatusAction } from '@/lib/actions/superAdminActions';
 import { SchoolType } from '@prisma/client';
-import { Plus, School, ShieldAlert, CheckCircle2, X, Lock, User, Mail, MapPin, Power } from 'lucide-react';
+import {
+  Plus,
+  School,
+  ShieldAlert,
+  CheckCircle2,
+  X,
+  Lock,
+  User,
+  Mail,
+  MapPin,
+  Power,
+  Copy,
+  Check,
+  Key,
+} from 'lucide-react';
 
 interface SchoolsClientProps {
   initialSchools: any[];
+}
+
+function sanitizeSlug(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function sanitizePascalCase(text: string): string {
+  return text
+    .replace(/[^a-zA-Z0-9 ]/g, '')
+    .split(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join('');
 }
 
 export default function SchoolsClient({ initialSchools }: SchoolsClientProps) {
@@ -20,9 +46,38 @@ export default function SchoolsClient({ initialSchools }: SchoolsClientProps) {
   const [address, setAddress] = useState('');
   const [adminName, setAdminName] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
-  const [adminPassword, setAdminPassword] = useState('Mboa2026!');
+  const [adminPassword, setAdminPassword] = useState('');
 
+  // Generated Credentials Success Modal State
+  const [generatedResult, setGeneratedResult] = useState<{
+    email: string;
+    password: string;
+    schoolName: string;
+    code: string;
+    adminName: string;
+  } | null>(null);
+
+  const [copied, setCopied] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Auto-generate credentials suggestion as user types school name
+  useEffect(() => {
+    if (schoolName.trim()) {
+      const slug = sanitizeSlug(schoolName);
+      const pascal = sanitizePascalCase(schoolName);
+      const year = new Date().getFullYear();
+
+      if (!adminEmail || adminEmail.includes('@')) {
+        setAdminEmail(`principal@${slug || 'school'}.cm`);
+      }
+      if (!adminPassword) {
+        setAdminPassword(`${pascal || 'School'}${year}!`);
+      }
+      if (!adminName) {
+        setAdminName(`Principal ${schoolName}`);
+      }
+    }
+  }, [schoolName]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,16 +94,14 @@ export default function SchoolsClient({ initialSchools }: SchoolsClientProps) {
         adminPassword,
       });
 
-      if (res.success) {
-        setMessage({
-          type: 'success',
-          text: `School "${schoolName}" provisioned successfully with Admin account "${adminEmail}"!`,
-        });
+      if (res.success && res.generatedCredentials) {
+        setGeneratedResult(res.generatedCredentials);
         setSchoolName('');
         setCode('');
         setAddress('');
         setAdminName('');
         setAdminEmail('');
+        setAdminPassword('');
         setIsModalOpen(false);
       } else {
         setMessage({
@@ -72,6 +125,22 @@ export default function SchoolsClient({ initialSchools }: SchoolsClientProps) {
     });
   }
 
+  function copyCredentialsToClipboard() {
+    if (!generatedResult) return;
+    const textToCopy = `SCHOOL TENANT CREDENTIALS
+-------------------------
+School Name: ${generatedResult.schoolName}
+Tenant Code: ${generatedResult.code}
+Principal Name: ${generatedResult.adminName}
+Admin Email: ${generatedResult.email}
+Initial Password: ${generatedResult.password}
+Portal URL: http://localhost:3000/login`;
+
+    navigator.clipboard.writeText(textToCopy);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000);
+  }
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Header & Provision Button */}
@@ -81,7 +150,7 @@ export default function SchoolsClient({ initialSchools }: SchoolsClientProps) {
             School Tenant Management
           </h1>
           <p className="text-slate-400 text-xs mt-1">
-            Provision new school tenants and manage active SaaS subscription access
+            Provision new school tenants with auto-generated unique credentials (`principal@schoolname.cm`)
           </p>
         </div>
 
@@ -211,6 +280,67 @@ export default function SchoolsClient({ initialSchools }: SchoolsClientProps) {
         )}
       </div>
 
+      {/* Generated Credentials Success Modal */}
+      {generatedResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-6 relative">
+            <button
+              type="button"
+              onClick={() => setGeneratedResult(null)}
+              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-start gap-3 border-b border-slate-800 pb-4">
+              <div className="p-3 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+                <Key className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white tracking-tight">
+                  Tenant Provisioned Successfully!
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Unique initial admin credentials have been generated for {generatedResult.schoolName}.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-medium">Tenant Code:</span>
+                <span className="font-mono font-bold text-white px-2 py-0.5 rounded bg-slate-900 border border-slate-800">
+                  {generatedResult.code}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-medium">Admin Name:</span>
+                <span className="font-bold text-white">{generatedResult.adminName}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-medium">Generated Email:</span>
+                <span className="font-mono text-emerald-400 font-bold">{generatedResult.email}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-medium">Generated Password:</span>
+                <span className="font-mono text-amber-400 font-bold">{generatedResult.password}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={copyCredentialsToClipboard}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all"
+              >
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copied ? 'Credentials Copied to Clipboard!' : 'Copy Credentials to Share'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Provision Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
@@ -232,7 +362,7 @@ export default function SchoolsClient({ initialSchools }: SchoolsClientProps) {
                   Provision New School Tenant
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Create a dedicated tenant workspace and initial School Admin credentials.
+                  Credentials auto-fill (`principal@schoolname.cm`) as you type the school name.
                 </p>
               </div>
             </div>
@@ -245,7 +375,7 @@ export default function SchoolsClient({ initialSchools }: SchoolsClientProps) {
                     type="text"
                     value={schoolName}
                     onChange={(e) => setSchoolName(e.target.value)}
-                    placeholder="e.g. Collège Jean Tabi"
+                    placeholder="e.g. Mboa College"
                     required
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500"
                   />
@@ -257,7 +387,7 @@ export default function SchoolsClient({ initialSchools }: SchoolsClientProps) {
                     type="text"
                     value={code}
                     onChange={(e) => setCode(e.target.value.toUpperCase())}
-                    placeholder="e.g. CJT-01"
+                    placeholder="e.g. MBOA-02"
                     required
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-xs focus:outline-none focus:border-blue-500"
                   />
@@ -284,14 +414,17 @@ export default function SchoolsClient({ initialSchools }: SchoolsClientProps) {
                     type="text"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="e.g. Yaoundé, Centre"
+                    placeholder="e.g. Douala, Littoral"
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500"
                   />
                 </div>
               </div>
 
               <div className="pt-3 border-t border-slate-800 space-y-3">
-                <h4 className="font-bold text-white text-xs">Initial School Admin Account Credentials</h4>
+                <h4 className="font-bold text-white text-xs flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-emerald-400" />
+                  Auto-Generated Initial Admin Account Credentials
+                </h4>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -300,33 +433,31 @@ export default function SchoolsClient({ initialSchools }: SchoolsClientProps) {
                       type="text"
                       value={adminName}
                       onChange={(e) => setAdminName(e.target.value)}
-                      placeholder="e.g. Principal Mme. Nkem"
-                      required
+                      placeholder="e.g. Principal Mboa College"
                       className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Admin Email</label>
+                    <label className="block text-slate-300 font-semibold mb-1">Admin Email (Auto-Generated)</label>
                     <input
                       type="email"
                       value={adminEmail}
                       onChange={(e) => setAdminEmail(e.target.value)}
-                      placeholder="e.g. principal@jeantabi.cm"
-                      required
-                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500"
+                      placeholder="principal@mboacollege.cm"
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-emerald-400 font-mono text-xs focus:outline-none focus:border-blue-500"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Initial Temporary Password</label>
+                  <label className="block text-slate-300 font-semibold mb-1">Initial Password (Auto-Generated)</label>
                   <input
                     type="text"
                     value={adminPassword}
                     onChange={(e) => setAdminPassword(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-xs focus:outline-none focus:border-blue-500"
+                    placeholder="MboaCollege2026!"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-amber-400 font-mono text-xs focus:outline-none focus:border-blue-500"
                   />
                 </div>
               </div>

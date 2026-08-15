@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { auth } from '@/lib/auth/auth';
 import {
   LayoutDashboard,
   Settings,
@@ -8,6 +10,7 @@ import {
   ClipboardList,
   GraduationCap,
   Calendar,
+  LogOut,
 } from 'lucide-react';
 
 const navItems = [
@@ -20,10 +23,17 @@ const navItems = [
   { href: '/school/timetable', label: 'Generated Timetable', icon: Calendar },
 ];
 
+export default async function SchoolLayout({ children }: { children: React.ReactNode }) {
+  const session = await auth();
 
-export default function SchoolLayout({ children }: { children: React.ReactNode }) {
+  if (!session || !session.user) {
+    redirect('/login');
+  }
+
+  const userEmail = session.user.email || 'school.admin@minesec.gov.cm';
+
   return (
-    <div className="min-h-screen flex bg-slate-950 text-slate-100">
+    <div className="min-h-screen flex bg-slate-950 text-slate-100 font-sans">
       {/* Sidebar Navigation */}
       <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between p-4 shrink-0">
         <div>
@@ -54,9 +64,19 @@ export default function SchoolLayout({ children }: { children: React.ReactNode }
           </nav>
         </div>
 
-        <div className="p-3 bg-slate-850/50 rounded-lg border border-slate-800 text-xs text-slate-400">
-          <p className="font-semibold text-slate-300">Cameroon Subsystem</p>
-          <p className="mt-0.5">MINESEC Anglophone & Francophone</p>
+        <div className="space-y-3 pt-3 border-t border-slate-800 text-xs text-slate-400">
+          <div className="px-2">
+            <p className="text-slate-500 text-[10px]">Logged in user:</p>
+            <p className="font-semibold text-white truncate">{userEmail}</p>
+          </div>
+
+          <Link
+            href="/login"
+            className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 transition-colors text-xs font-semibold border border-slate-800"
+          >
+            <LogOut className="w-3.5 h-3.5 text-red-400" />
+            Sign Out
+          </Link>
         </div>
       </aside>
 
