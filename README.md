@@ -398,6 +398,41 @@ The domain model enforces multi-tenant isolation while supporting flexible sched
 
 ---
 
+## 📁 Repository Directory Structure
+
+```
+cameroon-school-timetable/
+│
+├── app/                      # Next.js App Router (Pages, Layouts & API Routes)
+│   ├── admin/                # System Admin portal (School provisioning, accounts)
+│   ├── school/               # School Admin portal (Setup, teachers, classes, subjects)
+│   ├── timetable/            # Interactive Timetable Grid & Viewers (Class, Teacher, Master)
+│   └── api/                  # API endpoints & server actions
+│
+├── components/               # Shared & UI components (shadcn/ui, grids, forms, modals)
+│
+├── lib/                      # Business logic, helpers, and domain utilities
+│   ├── db/                   # Database client (Prisma instance)
+│   ├── auth/                 # Authentication & authorization helpers
+│   ├── validation/           # Zod validation schemas
+│   └── timetable/            # Client-side timetable utilities & formatters
+│
+├── prisma/                   # Database ORM configuration
+│   └── schema.prisma         # PostgreSQL relational schema definitions
+│
+├── scheduler/                # Isolated Python Solver Microservice
+│   ├── main.py               # FastAPI entry point & API routes
+│   ├── solver.py             # Google OR-Tools CP-SAT solver implementation
+│   ├── constraints.py        # Scheduling rules & constraint definitions
+│   └── requirements.txt      # Python dependencies (ortools, fastapi, uvicorn)
+│
+├── public/                   # Static assets (logos, images, default templates)
+│
+└── package.json              # Web app dependencies and scripts
+```
+
+---
+
 ## 🔮 Future Roadmap & Platform Vision
 
 1. **Role-Based Portals**:
