@@ -283,7 +283,7 @@ Portal URL: http://localhost:3000/login`;
       {/* Generated Credentials Success Modal */}
       {generatedResult && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-6 relative">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6 shadow-2xl space-y-6 relative">
             <button
               type="button"
               onClick={() => setGeneratedResult(null)}
@@ -344,7 +344,7 @@ Portal URL: http://localhost:3000/login`;
       {/* Provision Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-6 relative">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6 shadow-2xl space-y-6 relative">
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}

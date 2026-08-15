@@ -100,7 +100,7 @@ export default async function SchoolDashboardPage() {
       </div>
 
       {/* Metrics Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Link
           href="/school/classes"
           className="p-5 bg-slate-900 rounded-xl border border-slate-800 hover:border-slate-700 transition-colors group"
