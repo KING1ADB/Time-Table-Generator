@@ -1,0 +1,215 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  SCHOOL_ADMIN
+  TEACHER
+}
+
+enum SchoolType {
+  GRAMMAR
+  TECHNICAL
+  BILINGUAL
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+}
+
+enum TimePreference {
+  ANY
+  MORNING
+  AFTERNOON
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(SCHOOL_ADMIN)
+  schoolId     String?
+  school       School?  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model School {
+  id            String               @id @default(cuid())
+  name          String
+  code          String               @unique
+  type          SchoolType           @default(BILINGUAL)
+  address       String?
+  logoUrl       String?
+  isActive      Boolean              @default(true)
+  users         User[]
+  academicYears AcademicYear[]
+  rooms         Room[]
+  teachers      Teacher[]
+  classes       Class[]
+  subjects      Subject[]
+  assignments   TeachingAssignment[]
+  timetables    Timetable[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+}
+
+model AcademicYear {
+  id         String       @id @default(cuid())
+  year       String       // e.g., "2026/2027"
+  isCurrent  Boolean      @default(true)
+  schoolId   String
+  school     School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  days       SchoolDay[]
+  periods    PeriodSlot[]
+  breaks     BreakSlot[]
+  timetables Timetable[]
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+}
+
+model SchoolDay {
+  id             String       @id @default(cuid())
+  day            DayOfWeek
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+}
+
+model PeriodSlot {
+  id             String           @id @default(cuid())
+  periodNumber   Int
+  startTime      String           // e.g. "07:30"
+  endTime        String           // e.g. "08:25"
+  academicYearId String
+  academicYear   AcademicYear     @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  entries        TimetableEntry[]
+}
+
+model BreakSlot {
+  id             String       @id @default(cuid())
+  name           String       // e.g. "Morning Recess", "Lunch Break"
+  startTime      String       // e.g. "09:20"
+  endTime        String       // e.g. "09:40"
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+}
+
+model Class {
+  id        String         @id @default(cuid())
+  name      String         // e.g. "Form 5", "Upper Sixth"
+  subsystem String         // "ANGLOPHONE" or "FRANCOPHONE"
+  schoolId  String
+  school    School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  sections  ClassSection[]
+}
+
+model ClassSection {
+  id          String               @id @default(cuid())
+  name        String               // e.g. "Form 5A", "Upper Sixth Science"
+  classId     String
+  class       Class                @relation(fields: [classId], references: [id], onDelete: Cascade)
+  assignments TeachingAssignment[]
+  entries     TimetableEntry[]
+}
+
+model Subject {
+  id            String               @id @default(cuid())
+  name          String               // e.g. "Computer Science"
+  code          String               // e.g. "CSC"
+  isLabRequired Boolean              @default(false)
+  schoolId      String
+  school        School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  assignments   TeachingAssignment[]
+}
+
+model Room {
+  id       String           @id @default(cuid())
+  name     String           // e.g. "Computer Lab 1", "Room 102"
+  isLab    Boolean          @default(false)
+  capacity Int              @default(50)
+  schoolId String
+  school   School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  entries  TimetableEntry[]
+}
+
+model Teacher {
+  id           String                @id @default(cuid())
+  name         String
+  email        String?
+  phone        String?
+  maxPerDay    Int                   @default(6)
+  schoolId     String
+  school       School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  assignments  TeachingAssignment[]
+  availability TeacherAvailability[]
+}
+
+model TeacherAvailability {
+  id          String    @id @default(cuid())
+  teacherId   String
+  teacher     Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  day         DayOfWeek
+  isAvailable Boolean   @default(true)
+}
+
+model TeachingAssignment {
+  id                String           @id @default(cuid())
+  schoolId          String
+  school            School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  teacherId         String
+  teacher           Teacher          @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  classSectionId    String
+  classSection      ClassSection     @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  subjectId         String
+  subject           Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  periodsPerWeek    Int
+  allowDoublePeriod Boolean          @default(true)
+  timePreference    TimePreference   @default(ANY)
+  entries           TimetableEntry[]
+}
+
+model Timetable {
+  id             String           @id @default(cuid())
+  name           String           // e.g. "Master Timetable 2026/2027 v1"
+  schoolId       String
+  school         School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYearId String
+  academicYear   AcademicYear     @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  isPublished    Boolean          @default(false)
+  entries        TimetableEntry[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model TimetableEntry {
+  id                   String             @id @default(cuid())
+  timetableId          String
+  timetable            Timetable          @relation(fields: [timetableId], references: [id], onDelete: Cascade)
+  classSectionId       String
+  classSection         ClassSection       @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  teachingAssignmentId String
+  teachingAssignment   TeachingAssignment @relation(fields: [teachingAssignmentId], references: [id], onDelete: Cascade)
+  roomId               String?
+  room                 Room?              @relation(fields: [roomId], references: [id])
+  periodSlotId         String
+  periodSlot           PeriodSlot         @relation(fields: [periodSlotId], references: [id], onDelete: Cascade)
+  day                  DayOfWeek
+  isLocked             Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@unique([timetableId, classSectionId, day, periodSlotId])
+}
