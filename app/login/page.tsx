@@ -2,11 +2,9 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import { Calendar, Lock, Mail, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,7 +17,7 @@ export default function LoginPage() {
 
     try {
       const res = await signIn('credentials', {
-        email,
+        email: email.trim(),
         password,
         redirect: false,
       });
@@ -27,19 +25,32 @@ export default function LoginPage() {
       if (res?.error) {
         setError('Invalid email or password. Please check your credentials.');
         setLoading(false);
+        return;
+      }
+
+      // Check session role for redirect
+      const sessionRes = await fetch('/api/auth/session');
+      const session = await sessionRes.json();
+
+      const userRole = session?.user?.role;
+      if (userRole === 'SUPER_ADMIN') {
+        window.location.href = '/admin';
       } else {
-        // Fetch session to determine role-based redirect
+        window.location.href = '/school';
+      }
+    } catch (err: any) {
+      // Check session in case NextAuth threw after success
+      try {
         const sessionRes = await fetch('/api/auth/session');
         const session = await sessionRes.json();
 
-        if (session?.user?.role === 'SUPER_ADMIN') {
-          router.push('/admin');
-        } else {
-          router.push('/school');
+        if (session?.user) {
+          window.location.href = session?.user?.role === 'SUPER_ADMIN' ? '/admin' : '/school';
+          return;
         }
-      }
-    } catch (err) {
-      setError('An error occurred during authentication.');
+      } catch (_) {}
+
+      setError('Invalid email or password. Please check your credentials.');
       setLoading(false);
     }
   };
@@ -47,6 +58,7 @@ export default function LoginPage() {
   const fillCredentials = (userEmail: string, userPass: string) => {
     setEmail(userEmail);
     setPassword(userPass);
+    setError('');
   };
 
   return (

@@ -10,7 +10,9 @@ async function main() {
   const adminPassword = await hash('AdminPass123!', 10);
   await prisma.user.upsert({
     where: { email: 'admin@timetabler.cm' },
-    update: {},
+    update: {
+      passwordHash: adminPassword,
+    },
     create: {
       name: 'System Administrator',
       email: 'admin@timetabler.cm',
@@ -31,13 +33,16 @@ async function main() {
     },
   });
 
-  // Create School Admin
-  const schoolAdminPassword = await hash('SchoolPass123!', 10);
+  // Create School Admin with default credential MboaCollege2026!
+  const schoolAdminPassword = await hash('MboaCollege2026!', 10);
   await prisma.user.upsert({
     where: { email: 'principal@mboacollege.cm' },
-    update: {},
+    update: {
+      passwordHash: schoolAdminPassword,
+      schoolId: school.id,
+    },
     create: {
-      name: 'Principal Mboa',
+      name: 'Principal Mboa College',
       email: 'principal@mboacollege.cm',
       passwordHash: schoolAdminPassword,
       role: Role.SCHOOL_ADMIN,

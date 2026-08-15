@@ -11,7 +11,7 @@ export async function middleware(req: NextRequest) {
   if (isSchoolRoute || isAdminRoute) {
     const token = await getToken({
       req,
-      secret: process.env.NEXTAUTH_SECRET || 'super-secret-random-32-character-key-here',
+      secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'super-secret-random-32-character-key-here',
     });
 
     // Unauthenticated -> redirect to /login
