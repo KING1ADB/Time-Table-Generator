@@ -141,11 +141,11 @@ export default function LoginPage() {
       <div className="w-full max-w-md relative z-10">
         {/* Header Logo */}
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-xl shadow-blue-500/20 mx-auto mb-4">
-            <Calendar className="w-6 h-6 text-white" />
+          <div className="w-14 h-14 rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 flex items-center justify-center shadow-xl shadow-blue-500/20 mx-auto mb-3">
+            <img src="/logo.png" alt="CamTime Logo" className="w-full h-full object-cover" />
           </div>
-          <h1 className="text-2xl font-black text-white tracking-tight">Welcome Back</h1>
-          <p className="text-xs text-slate-400 mt-1">Sign in to your School Admin or System Portal</p>
+          <h1 className="text-2xl font-black text-white tracking-tight">CamTime Portal</h1>
+          <p className="text-xs text-slate-400 mt-1">Sign in to your School Admin Workspace • Powered by Neurivex Group</p>
         </div>
 
         <Suspense fallback={<div className="p-8 text-center text-slate-400">Loading portal...</div>}>
