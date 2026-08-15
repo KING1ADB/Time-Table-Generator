@@ -8,6 +8,69 @@ from models import (
 )
 
 
+def analyze_infeasibility_reasons(request: TimetableGenerationRequest) -> list[str]:
+    diagnostics = []
+
+    days = request.days
+    period_slots = request.periodSlots
+    total_weekly_slots = len(days) * len(period_slots)
+
+    # 1. Check Lab Requirements vs Available Lab Rooms
+    lab_rooms = [r for r in request.rooms if r.isLab]
+    lab_subjects_needed = [a for a in request.assignments if a.isLabRequired]
+    if lab_subjects_needed and not lab_rooms:
+        diagnostics.append(
+            f"❌ LAB ROOM MISSING: {len(lab_subjects_needed)} assignment(s) require a Laboratory (e.g. Science/Computer Lab), but 0 rooms are marked as 'Laboratory' in Subjects & Rooms."
+        )
+
+    # 2. Check Class Slot Capacity vs Assigned Periods
+    class_assignments = {}
+    for a in request.assignments:
+        class_assignments[a.classSectionId] = class_assignments.get(a.classSectionId, 0) + a.periodsPerWeek
+
+    for c_id, total_periods in class_assignments.items():
+        if total_periods > total_weekly_slots:
+            diagnostics.append(
+                f"❌ CLASS CAPACITY EXCEEDED: Class Section ID '{c_id}' requires {total_periods} periods/week, but your schedule only has {total_weekly_slots} total weekly slots ({len(days)} days × {len(period_slots)} periods)."
+            )
+
+    # 3. Check Teacher Workload vs Total Weekly Slots & Daily Max
+    teachers_dict = {t.teacherId: t for t in request.teachers}
+    teacher_periods = {}
+    for a in request.assignments:
+        teacher_periods[a.teacherId] = teacher_periods.get(a.teacherId, 0) + a.periodsPerWeek
+
+    for t_id, total_periods in teacher_periods.items():
+        t_info = teachers_dict.get(t_id)
+        max_daily = t_info.maxPerDay if t_info else len(period_slots)
+        
+        # Calculate available days for teacher
+        unavail_days = set()
+        if t_info:
+            for u in t_info.unavailableSlots:
+                if not u.get("periodSlotId"):
+                    unavail_days.add(u.get("day"))
+
+        available_days_count = max(1, len(days) - len(unavail_days))
+        max_possible_periods = available_days_count * max_daily
+
+        if total_periods > total_weekly_slots:
+            diagnostics.append(
+                f"❌ TEACHER OVERLOAD: Teacher ID '{t_id}' is assigned {total_periods} periods/week across all classes, but the week only has {total_weekly_slots} total period slots."
+            )
+        elif total_periods > max_possible_periods:
+            diagnostics.append(
+                f"❌ TEACHER DAILY CAP EXCEEDED: Teacher ID '{t_id}' requires {total_periods} periods/week, but with maxPerDay={max_daily} across {available_days_count} available day(s), they can only teach at most {max_possible_periods} periods."
+            )
+
+    if not diagnostics:
+        diagnostics.append(
+            "Constraints conflict. Ensure teachers have sufficient availability and daily lesson limits match required weekly periods."
+        )
+
+    return diagnostics
+
+
 def solve_timetable(request: TimetableGenerationRequest) -> TimetableGenerationResponse:
     start_time = time.time()
     model = cp_model.CpModel()
@@ -25,7 +88,7 @@ def solve_timetable(request: TimetableGenerationRequest) -> TimetableGenerationR
     general_rooms = [r.id for r in rooms if not r.isLab]
     all_room_ids = [r.id for r in rooms]
 
-    # Map locked entries for quick lookup: (classId, day, periodId) -> assignmentId
+    # Map locked entries for quick lookup: (classId, day, periodId) -> lock
     locked_map = {}
     for lock in request.lockedEntries:
         locked_map[(lock.classSectionId, lock.day, lock.periodSlotId)] = lock
@@ -49,8 +112,18 @@ def solve_timetable(request: TimetableGenerationRequest) -> TimetableGenerationR
             for d in days
             for p in period_slots
             for r_id in (lab_rooms if a.isLabRequired else (all_room_ids or [None]))
+            if (a.id, d, p.id, r_id) in x
         ]
-        model.Add(sum(a_vars) == a.periodsPerWeek)
+        if a_vars:
+            model.Add(sum(a_vars) == a.periodsPerWeek)
+        else:
+            # Cannot fulfill assignment due to missing room/variable
+            exec_time = round((time.time() - start_time) * 1000, 2)
+            return TimetableGenerationResponse(
+                status="INFEASIBLE",
+                executionTimeMs=exec_time,
+                diagnostics=analyze_infeasibility_reasons(request),
+            )
 
     # Enforce Locked Entries (🔒)
     for lock in request.lockedEntries:
@@ -63,7 +136,6 @@ def solve_timetable(request: TimetableGenerationRequest) -> TimetableGenerationR
 
     # -------------------------------------------------------------
     # HARD CONSTRAINT 2: Class Section No-Overlap
-    # (A class section can have at most 1 lesson per (day, period))
     # -------------------------------------------------------------
     for c_id in classes:
         c_assignments = [a for a in assignments if a.classSectionId == c_id]
@@ -74,7 +146,8 @@ def solve_timetable(request: TimetableGenerationRequest) -> TimetableGenerationR
                     for r_id in (lab_rooms if a.isLabRequired else (all_room_ids or [None])):
                         if (a.id, d, p.id, r_id) in x:
                             slot_vars.append(x[(a.id, d, p.id, r_id)])
-                model.Add(sum(slot_vars) <= 1)
+                if slot_vars:
+                    model.Add(sum(slot_vars) <= 1)
 
     # -------------------------------------------------------------
     # HARD CONSTRAINT 3: Teacher No-Overlap & Availability
@@ -82,10 +155,11 @@ def solve_timetable(request: TimetableGenerationRequest) -> TimetableGenerationR
     for t_id, t_info in teachers_dict.items():
         t_assignments = [a for a in assignments if a.teacherId == t_id]
 
-        # Unavailable slots
-        unavail_set = {(u["day"], u["periodSlotId"]) for u in t_info.unavailableSlots}
+        # Unavailable slots map
+        unavail_days = {u["day"] for u in t_info.unavailableSlots if not u.get("periodSlotId")}
+        unavail_slots = {(u["day"], u["periodSlotId"]) for u in t_info.unavailableSlots if u.get("periodSlotId")}
+
         for d in days:
-            # Max daily limit
             daily_vars = []
             for p in period_slots:
                 slot_vars = []
@@ -94,27 +168,34 @@ def solve_timetable(request: TimetableGenerationRequest) -> TimetableGenerationR
                         if (a.id, d, p.id, r_id) in x:
                             slot_vars.append(x[(a.id, d, p.id, r_id)])
 
-                # Check availability
-                if (d, p.id) in unavail_set:
-                    model.Add(sum(slot_vars) == 0)
-                model.Add(sum(slot_vars) <= 1)
-                daily_vars.extend(slot_vars)
-            model.Add(sum(daily_vars) <= t_info.maxPerDay)
+                # Check day-level or slot-level unavailability
+                if d in unavail_days or (d, p.id) in unavail_slots:
+                    if slot_vars:
+                        model.Add(sum(slot_vars) == 0)
+                
+                if slot_vars:
+                    model.Add(sum(slot_vars) <= 1)
+                    daily_vars.extend(slot_vars)
+
+            if daily_vars:
+                model.Add(sum(daily_vars) <= t_info.maxPerDay)
 
     # -------------------------------------------------------------
     # HARD CONSTRAINT 4: Room No-Overlap
     # -------------------------------------------------------------
     for r_id in all_room_ids:
+        if r_id is None:
+            continue
         for d in days:
             for p in period_slots:
                 room_vars = [x[(a.id, d, p.id, r_id)] for a in assignments if (a.id, d, p.id, r_id) in x]
-                model.Add(sum(room_vars) <= 1)
+                if room_vars:
+                    model.Add(sum(room_vars) <= 1)
 
     # -------------------------------------------------------------
     # SOFT CONSTRAINTS / OPTIMIZATION OBJECTIVE
     # -------------------------------------------------------------
     objective_terms = []
-    # Priority for Morning slots (Period 1 to 4) for MORNING preference
     for a in assignments:
         if a.timePreference == TimePreference.MORNING:
             for d in days:
@@ -128,7 +209,7 @@ def solve_timetable(request: TimetableGenerationRequest) -> TimetableGenerationR
 
     # Solver configuration
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 10.0  # 10s max solver timeout
+    solver.parameters.max_time_in_seconds = 10.0
     status = solver.Solve(model)
 
     exec_time = round((time.time() - start_time) * 1000, 2)
@@ -156,7 +237,5 @@ def solve_timetable(request: TimetableGenerationRequest) -> TimetableGenerationR
         return TimetableGenerationResponse(
             status="INFEASIBLE",
             executionTimeMs=exec_time,
-            diagnostics=[
-                "Constraints cannot be satisfied. Check teacher availability or period capacity."
-            ],
+            diagnostics=analyze_infeasibility_reasons(request),
         )
