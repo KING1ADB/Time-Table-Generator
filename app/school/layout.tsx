@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth/auth';
+import { getAuthenticatedSchool } from '@/lib/auth/tenantGuard';
 import {
   LayoutDashboard,
   Settings,
-  School,
+  School as SchoolIcon,
   BookOpen,
   Users,
   ClipboardList,
@@ -16,7 +17,7 @@ import {
 const navItems = [
   { href: '/school', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/school/setup', label: 'Operating Hours & Breaks', icon: Settings },
-  { href: '/school/classes', label: 'Classes & Arms', icon: School },
+  { href: '/school/classes', label: 'Classes & Arms', icon: SchoolIcon },
   { href: '/school/subjects-rooms', label: 'Subjects & Rooms', icon: BookOpen },
   { href: '/school/teachers', label: 'Teachers & Availability', icon: Users },
   { href: '/school/assignments', label: 'Teaching Assignments', icon: ClipboardList },
@@ -30,6 +31,9 @@ export default async function SchoolLayout({ children }: { children: React.React
     redirect('/login');
   }
 
+  const school = await getAuthenticatedSchool();
+  const schoolName = school?.name || 'School Workspace';
+  const schoolType = school?.type || 'BILINGUAL';
   const userEmail = session.user.email || 'school.admin@minesec.gov.cm';
 
   return (
@@ -38,11 +42,13 @@ export default async function SchoolLayout({ children }: { children: React.React
       <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between p-4 shrink-0">
         <div>
           <div className="flex items-center gap-3 px-2 py-4 mb-6 border-b border-slate-800">
-            <div className="w-10 h-10 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+            <div className="w-10 h-10 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 shrink-0">
               <GraduationCap className="w-6 h-6" />
             </div>
-            <div>
-              <h1 className="font-bold text-sm text-white tracking-wide">Mboa College</h1>
+            <div className="overflow-hidden">
+              <h1 className="font-bold text-sm text-white tracking-wide truncate" title={schoolName}>
+                {schoolName}
+              </h1>
               <p className="text-xs text-slate-400">Timetable SaaS</p>
             </div>
           </div>
@@ -65,8 +71,11 @@ export default async function SchoolLayout({ children }: { children: React.React
         </div>
 
         <div className="space-y-3 pt-3 border-t border-slate-800 text-xs text-slate-400">
-          <div className="px-2">
-            <p className="text-slate-500 text-[10px]">Logged in user:</p>
+          <div className="px-2 space-y-1">
+            <span className="inline-block px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-300 font-bold text-[10px]">
+              {schoolType} Subsystem
+            </span>
+            <p className="text-slate-500 text-[10px] pt-1">Logged in user:</p>
             <p className="font-semibold text-white truncate">{userEmail}</p>
           </div>
 

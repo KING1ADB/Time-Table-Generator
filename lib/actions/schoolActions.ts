@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/db/prisma';
 import { DayOfWeek, TimePreference } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
+import { getAuthenticatedSchoolId } from '@/lib/auth/tenantGuard';
 import {
   SchoolSetupInput,
   ClassSectionInput,
@@ -31,18 +32,22 @@ function minutesToTime(minutes: number): string {
   return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
 }
 
-export async function setupAcademicYearAndSchedule(schoolId: string, rawInput: SchoolSetupInput) {
+export async function setupAcademicYearAndSchedule(
+  schoolId: string,
+  rawInput: SchoolSetupInput
+) {
+  const activeSchoolId = schoolId || (await getAuthenticatedSchoolId());
   const input = schoolSetupSchema.parse(rawInput);
 
   // Find or create current AcademicYear
   let academicYear = await prisma.academicYear.findFirst({
-    where: { schoolId, isCurrent: true },
+    where: { schoolId: activeSchoolId, isCurrent: true },
   });
 
   if (!academicYear) {
     academicYear = await prisma.academicYear.create({
       data: {
-        schoolId,
+        schoolId: activeSchoolId,
         year: input.year,
         isCurrent: true,
       },
@@ -101,7 +106,6 @@ export async function setupAcademicYearAndSchedule(schoolId: string, rawInput: S
     );
 
     if (overlapsBreak) {
-      // Find the end of the break window to jump past it
       const breakObj = breakWindows.find(
         (b) => Math.max(currentMin, b.start) < Math.min(slotEnd, b.end)
       );
@@ -133,11 +137,12 @@ export async function setupAcademicYearAndSchedule(schoolId: string, rawInput: S
 }
 
 export async function addClassWithSections(schoolId: string, rawInput: ClassSectionInput) {
+  const activeSchoolId = schoolId || (await getAuthenticatedSchoolId());
   const input = classSectionSchema.parse(rawInput);
 
   const newClass = await prisma.class.create({
     data: {
-      schoolId,
+      schoolId: activeSchoolId,
       name: input.className,
       subsystem: input.subsystem,
       sections: {
@@ -164,10 +169,11 @@ export async function deleteClass(classId: string) {
 }
 
 export async function createSubject(schoolId: string, rawInput: SubjectInput) {
+  const activeSchoolId = schoolId || (await getAuthenticatedSchoolId());
   const input = subjectSchema.parse(rawInput);
   const subject = await prisma.subject.create({
     data: {
-      schoolId,
+      schoolId: activeSchoolId,
       name: input.name,
       code: input.code,
       isLabRequired: input.isLabRequired,
@@ -186,10 +192,11 @@ export async function deleteSubject(subjectId: string) {
 }
 
 export async function createRoom(schoolId: string, rawInput: RoomInput) {
+  const activeSchoolId = schoolId || (await getAuthenticatedSchoolId());
   const input = roomSchema.parse(rawInput);
   const room = await prisma.room.create({
     data: {
-      schoolId,
+      schoolId: activeSchoolId,
       name: input.name,
       capacity: input.capacity,
       isLab: input.isLab,
@@ -206,11 +213,12 @@ export async function deleteRoom(roomId: string) {
 }
 
 export async function createTeacher(schoolId: string, rawInput: TeacherInput) {
+  const activeSchoolId = schoolId || (await getAuthenticatedSchoolId());
   const input = teacherSchema.parse(rawInput);
 
   const teacher = await prisma.teacher.create({
     data: {
-      schoolId,
+      schoolId: activeSchoolId,
       name: input.name,
       email: input.email || null,
       phone: input.phone || null,
@@ -270,12 +278,16 @@ export async function deleteTeacher(teacherId: string) {
   return { success: true };
 }
 
-export async function createTeachingAssignment(schoolId: string, rawInput: TeachingAssignmentInput) {
+export async function createTeachingAssignment(
+  schoolId: string,
+  rawInput: TeachingAssignmentInput
+) {
+  const activeSchoolId = schoolId || (await getAuthenticatedSchoolId());
   const input = teachingAssignmentSchema.parse(rawInput);
 
   const assignment = await prisma.teachingAssignment.create({
     data: {
-      schoolId,
+      schoolId: activeSchoolId,
       teacherId: input.teacherId,
       classSectionId: input.classSectionId,
       subjectId: input.subjectId,
@@ -300,7 +312,9 @@ export async function deleteTeachingAssignment(assignmentId: string) {
   return { success: true };
 }
 
-export async function getSchoolDataPreValidation(schoolId: string) {
+export async function getSchoolDataPreValidation(targetSchoolId?: string) {
+  const schoolId = targetSchoolId || (await getAuthenticatedSchoolId());
+
   const academicYear = await prisma.academicYear.findFirst({
     where: { schoolId, isCurrent: true },
     include: {
@@ -377,7 +391,9 @@ export async function getSchoolDataPreValidation(schoolId: string) {
   };
 }
 
-export async function getSchoolMasterData(schoolId: string) {
+export async function getSchoolMasterData(targetSchoolId?: string) {
+  const schoolId = targetSchoolId || (await getAuthenticatedSchoolId());
+
   const school = await prisma.school.findUnique({
     where: { id: schoolId },
   });

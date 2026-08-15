@@ -2,10 +2,13 @@
 
 import { prisma } from '@/lib/db/prisma';
 import { revalidatePath } from 'next/cache';
+import { getAuthenticatedSchoolId } from '@/lib/auth/tenantGuard';
 
 const SCHEDULER_URL = process.env.SCHEDULER_ENGINE_URL || 'http://localhost:8000';
 
-export async function generateTimetableAction(schoolId: string) {
+export async function generateTimetableAction(targetSchoolId?: string) {
+  const schoolId = targetSchoolId || (await getAuthenticatedSchoolId());
+
   const academicYear = await prisma.academicYear.findFirst({
     where: { schoolId, isCurrent: true },
     include: { days: true, periods: { orderBy: { periodNumber: 'asc' } }, breaks: true },
@@ -156,7 +159,9 @@ export async function generateTimetableAction(schoolId: string) {
   }
 }
 
-export async function getTimetableData(schoolId: string) {
+export async function getTimetableData(targetSchoolId?: string) {
+  const schoolId = targetSchoolId || (await getAuthenticatedSchoolId());
+
   const academicYear = await prisma.academicYear.findFirst({
     where: { schoolId, isCurrent: true },
     include: {

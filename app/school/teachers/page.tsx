@@ -1,9 +1,9 @@
 import { prisma } from '@/lib/db/prisma';
+import { getAuthenticatedSchoolId } from '@/lib/auth/tenantGuard';
 import TeachersClient from './TeachersClient';
 
 export default async function TeachersPage() {
-  const school = await prisma.school.findFirst({ where: { code: 'MBOA-01' } });
-  const schoolId = school?.id || 'school_mboa_college_01';
+  const schoolId = await getAuthenticatedSchoolId();
 
   const teachers = await prisma.teacher.findMany({
     where: { schoolId },

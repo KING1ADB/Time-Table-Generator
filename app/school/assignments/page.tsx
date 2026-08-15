@@ -1,10 +1,10 @@
 import { prisma } from '@/lib/db/prisma';
+import { getAuthenticatedSchoolId } from '@/lib/auth/tenantGuard';
 import { getSchoolDataPreValidation } from '@/lib/actions/schoolActions';
 import AssignmentsClient from './AssignmentsClient';
 
 export default async function AssignmentsPage() {
-  const school = await prisma.school.findFirst({ where: { code: 'MBOA-01' } });
-  const schoolId = school?.id || 'school_mboa_college_01';
+  const schoolId = await getAuthenticatedSchoolId();
 
   const [teachers, sections, subjects, assignments, preValidation] = await Promise.all([
     prisma.teacher.findMany({ where: { schoolId }, orderBy: { name: 'asc' } }),

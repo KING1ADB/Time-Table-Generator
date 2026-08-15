@@ -28,7 +28,7 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
   const [displayMode, setDisplayMode] = useState<DisplayMode>('UNIFIED');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
-  const school = initialData.school || { name: 'Mboa Bilingual College' };
+  const school = initialData.school || { name: 'School Workspace' };
   const academicYear = initialData.academicYear || { year: '2026/2027' };
   const classSections = initialData.classSections || [];
   const teachers = initialData.teachers || [];

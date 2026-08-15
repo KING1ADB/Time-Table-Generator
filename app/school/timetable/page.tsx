@@ -1,13 +1,9 @@
-import { prisma } from '@/lib/db/prisma';
+import { getAuthenticatedSchoolId } from '@/lib/auth/tenantGuard';
 import { getTimetableData } from '@/lib/actions/timetableActions';
 import TimetableClient from './TimetableClient';
 
 export default async function TimetablePage() {
-  const school = await prisma.school.findFirst({
-    where: { code: 'MBOA-01' },
-  });
-
-  const schoolId = school?.id || '';
+  const schoolId = await getAuthenticatedSchoolId();
   const initialData = await getTimetableData(schoolId);
 
   return <TimetableClient schoolId={schoolId} initialData={initialData} />;

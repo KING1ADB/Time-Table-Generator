@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/db/prisma';
+import { getAuthenticatedSchool } from '@/lib/auth/tenantGuard';
 import { getSchoolDataPreValidation } from '@/lib/actions/schoolActions';
 import {
   School,
@@ -13,11 +14,9 @@ import {
 } from 'lucide-react';
 
 export default async function SchoolDashboardPage() {
-  const school = await prisma.school.findFirst({
-    where: { code: 'MBOA-01' },
-  });
-
+  const school = await getAuthenticatedSchool();
   const schoolId = school?.id || '';
+  const schoolName = school?.name || 'School Dashboard';
 
   const [preValidation, counts] = await Promise.all([
     getSchoolDataPreValidation(schoolId),
@@ -34,9 +33,14 @@ export default async function SchoolDashboardPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-white tracking-tight">School Administration Dashboard</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-3xl font-bold text-white tracking-tight">{schoolName}</h1>
+          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+            {school?.type || 'BILINGUAL'}
+          </span>
+        </div>
         <p className="text-slate-400 mt-1">
-          Manage master data, setup schedules, and configure teaching assignments for automatic timetable generation.
+          Tenant Administration Dashboard — Manage master data, setup schedules, and configure teaching assignments for automatic timetable generation.
         </p>
       </div>
 

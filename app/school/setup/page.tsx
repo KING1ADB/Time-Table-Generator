@@ -15,7 +15,7 @@ const DAYS_OPTIONS = [
 ];
 
 export default function SchoolSetupPage() {
-  const router = RouterHook();
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const [year, setYear] = useState('2026/2027');
@@ -64,12 +64,9 @@ export default function SchoolSetupPage() {
     e.preventDefault();
     setMessage(null);
 
-    // Hardcode schoolId for Mboa College
-    const schoolId = 'school_mboa_college_01';
-
     startTransition(async () => {
       try {
-        const res = await setupAcademicYearAndSchedule(schoolId, {
+        const res = await setupAcademicYearAndSchedule('', {
           year,
           periodDurationMinutes: Number(periodDurationMinutes),
           days: selectedDays,
@@ -291,9 +288,4 @@ export default function SchoolSetupPage() {
       </form>
     </div>
   );
-}
-
-// Router hook helper for App Router
-function RouterHook() {
-  return useRouter();
 }

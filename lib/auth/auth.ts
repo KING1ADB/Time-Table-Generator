@@ -19,6 +19,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const emailClean = (credentials.email as string).trim().toLowerCase();
         const user = await prisma.user.findUnique({
           where: { email: emailClean },
+          include: { school: true },
         });
 
         if (!user || !user.passwordHash) return null;
@@ -32,6 +33,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           role: user.role,
           schoolId: user.schoolId,
+          schoolName: user.school?.name,
+          schoolCode: user.school?.code,
+          schoolType: user.school?.type,
         };
       },
     }),
@@ -41,6 +45,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.role = (user as any).role;
         token.schoolId = (user as any).schoolId;
+        token.schoolName = (user as any).schoolName;
+        token.schoolCode = (user as any).schoolCode;
+        token.schoolType = (user as any).schoolType;
       }
       return token;
     },
@@ -49,6 +56,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (session.user as any).id = token.sub;
         (session.user as any).role = token.role;
         (session.user as any).schoolId = token.schoolId;
+        (session.user as any).schoolName = token.schoolName;
+        (session.user as any).schoolCode = token.schoolCode;
+        (session.user as any).schoolType = token.schoolType;
       }
       return session;
     },
