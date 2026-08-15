@@ -140,17 +140,27 @@ export async function addClassWithSections(schoolId: string, rawInput: ClassSect
   const activeSchoolId = schoolId || (await getAuthenticatedSchoolId());
   const input = classSectionSchema.parse(rawInput);
 
+  // Default to a single section with the class name if no arms provided
+  const arms = input.sectionNames && input.sectionNames.length > 0 
+    ? input.sectionNames 
+    : [input.className];
+
   const newClass = await prisma.class.create({
     data: {
       schoolId: activeSchoolId,
       name: input.className,
       subsystem: input.subsystem,
       sections: {
-        create: input.sectionNames.map((arm) => ({
-          name: input.sectionNames.length === 1 && arm.toLowerCase() === input.className.toLowerCase() 
-            ? arm 
-            : `${input.className} ${arm}`,
-        })),
+        create: arms.map((arm) => {
+          const trimmedArm = arm.trim();
+          if (
+            arms.length === 1 && 
+            (trimmedArm.toLowerCase() === input.className.toLowerCase() || trimmedArm === '')
+          ) {
+            return { name: input.className };
+          }
+          return { name: `${input.className} ${trimmedArm}` };
+        }),
       },
     },
     include: { sections: true },

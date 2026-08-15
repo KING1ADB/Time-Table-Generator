@@ -24,7 +24,7 @@ export default function ClassesClient({
 
   const [className, setClassName] = useState('');
   const [subsystem, setSubsystem] = useState<'ANGLOPHONE' | 'FRANCOPHONE'>('ANGLOPHONE');
-  const [armsInput, setArmsInput] = useState('A, B');
+  const [armsInput, setArmsInput] = useState('');
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -36,11 +36,6 @@ export default function ClassesClient({
       .split(',')
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
-
-    if (sectionNames.length === 0) {
-      setMessage({ type: 'error', text: 'At least one section arm is required.' });
-      return;
-    }
 
     startTransition(async () => {
       try {
@@ -56,7 +51,7 @@ export default function ClassesClient({
             text: `Class "${className}" created with ${res.newClass.sections.length} section arm(s)!`,
           });
           setClassName('');
-          setArmsInput('A, B');
+          setArmsInput('');
           router.refresh();
         }
       } catch (err: any) {
@@ -84,7 +79,7 @@ export default function ClassesClient({
       <div>
         <h1 className="text-3xl font-bold text-white tracking-tight">Classes & Section Arms</h1>
         <p className="text-slate-400 mt-1">
-          Define forms and streams (e.g., Form 1A, Form 5B, Lower Sixth Science).
+          Define single-arm classes or multi-stream forms (e.g., Form 1, Form 5A, Form 5B, Lower Sixth Science).
         </p>
       </div>
 
@@ -119,7 +114,7 @@ export default function ClassesClient({
               type="text"
               value={className}
               onChange={(e) => setClassName(e.target.value)}
-              placeholder="e.g. Form 5 or Upper Sixth"
+              placeholder="e.g. Form 1 or Upper Sixth"
               required
               className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500"
             />
@@ -138,13 +133,15 @@ export default function ClassesClient({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Section Arms (Comma Separated)</label>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5 flex items-center justify-between">
+              <span>Section Arms (Optional)</span>
+              <span className="text-[10px] text-emerald-400 font-normal">Blank = Single Stream</span>
+            </label>
             <input
               type="text"
               value={armsInput}
               onChange={(e) => setArmsInput(e.target.value)}
-              placeholder="e.g. A, B, C or Arts, Science"
-              required
+              placeholder="e.g. A, B, C or leave blank"
               className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500"
             />
           </div>
@@ -155,7 +152,7 @@ export default function ClassesClient({
           disabled={isPending}
           className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-lg text-sm transition-colors shadow-md shadow-emerald-950/40 disabled:opacity-50"
         >
-          {isPending ? 'Creating Class...' : 'Create Class & Section Arms'}
+          {isPending ? 'Creating Class...' : 'Create Class'}
         </button>
       </form>
 

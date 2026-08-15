@@ -16,7 +16,7 @@ export const schoolSetupSchema = z.object({
 export const classSectionSchema = z.object({
   className: z.string().min(1, 'Class name required (e.g. Form 5)'),
   subsystem: z.enum(['ANGLOPHONE', 'FRANCOPHONE']),
-  sectionNames: z.array(z.string()).min(1, 'At least one section arm required (e.g. A, B)'),
+  sectionNames: z.array(z.string()).optional().default([]),
 });
 
 export const subjectSchema = z.object({
