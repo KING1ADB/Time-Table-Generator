@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import ThemeToggle from '@/components/theme/ThemeToggle';
 import {
   LayoutDashboard,
@@ -46,6 +47,10 @@ export default function SchoolSidebarWrapper({
   const [isOpen, setIsOpen] = useState(false);
 
   const activeNavItem = navItems.find((item) => item.href === pathname) || navItems[0];
+
+  function handleSignOut() {
+    signOut({ callbackUrl: '/' });
+  }
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-slate-950 text-slate-100 font-sans">
@@ -153,14 +158,14 @@ export default function SchoolSidebarWrapper({
                 <p className="font-semibold text-white truncate">{userEmail}</p>
               </div>
 
-              <Link
-                href="/login"
-                onClick={() => setIsOpen(false)}
-                className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 transition-colors text-xs font-semibold border border-slate-800"
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 transition-colors text-xs font-semibold border border-slate-800"
               >
                 <LogOut className="w-3.5 h-3.5 text-red-400" />
                 Sign Out
-              </Link>
+              </button>
 
               {/* Company Branding Footer */}
               <div className="pt-2 text-center text-[10px] text-slate-500 border-t border-slate-800/60">
@@ -234,13 +239,14 @@ export default function SchoolSidebarWrapper({
             <p className="font-semibold text-white truncate">{userEmail}</p>
           </div>
 
-          <Link
-            href="/login"
-            className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 transition-colors text-xs font-semibold border border-slate-800"
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 transition-colors text-xs font-semibold border border-slate-800 cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5 text-red-400" />
             Sign Out
-          </Link>
+          </button>
 
           {/* Company Branding Footer */}
           <div className="pt-2 text-center text-[10px] text-slate-500 border-t border-slate-800/60">

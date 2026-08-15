@@ -1,7 +1,21 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import ThemeToggle from '@/components/theme/ThemeToggle';
-import { Sparkles, ShieldCheck, Cpu, Printer, Lock, ArrowRight, CheckCircle2 } from 'lucide-react';
+import {
+  Sparkles,
+  ShieldCheck,
+  Cpu,
+  Printer,
+  Lock,
+  ArrowRight,
+  CheckCircle2,
+  PhoneCall,
+  Zap,
+} from 'lucide-react';
+
+const WHATSAPP_NUMBER = '237654087582';
+const WHATSAPP_ANNUAL_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=Hello%20Neurivex%20Group!%20I%20want%20to%20subscribe%20my%20school%20to%20CamTime%20(Annual%20Plan%20-%205,000%20FCFA).`;
+const WHATSAPP_LIFETIME_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=Hello%20Neurivex%20Group!%20I%20want%20to%20subscribe%20my%20school%20to%20CamTime%20(Lifetime%20VIP%20Plan%20-%2050,000%20FCFA).`;
 
 export default function LandingPage() {
   return (
@@ -64,11 +78,19 @@ export default function LandingPage() {
           >
             Access CamTime Dashboard <ArrowRight className="w-5 h-5" />
           </Link>
+          <a
+            href={WHATSAPP_ANNUAL_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full sm:w-auto px-8 py-4 rounded-xl text-base font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-600/25 transition-all flex items-center justify-center gap-2"
+          >
+            <PhoneCall className="w-5 h-5" /> Subscribe on WhatsApp (+237 654087582)
+          </a>
         </div>
       </section>
 
       {/* Feature Cards Grid */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 py-16">
+      <section className="relative z-10 max-w-6xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="p-8 rounded-2xl bg-slate-900/50 border border-slate-800/80 hover:border-blue-500/50 transition-all">
             <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 mb-6">
@@ -98,6 +120,113 @@ export default function LandingPage() {
             <p className="text-slate-400 text-sm leading-relaxed">
               Print official Cameroonian MINESEC formatted timetables with CamTime branding & Neurivex Group attributions for noticeboards.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Subscription Pricing Tiers */}
+      <section className="relative z-10 max-w-5xl mx-auto px-6 py-16 border-t border-slate-800/60">
+        <div className="text-center mb-12">
+          <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold uppercase tracking-wider">
+            Subscription Pricing
+          </span>
+          <h2 className="text-3xl font-black text-white mt-3">Simple, Affordable Pricing for Cameroon Schools</h2>
+          <p className="text-slate-400 text-sm mt-2 max-w-xl mx-auto">
+            Get full access to the CamTime timetable generator. Instant activation via Mobile Money & Orange Money.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Tier 1: 5,000 FCFA / Academic Year */}
+          <div className="p-8 rounded-2xl bg-slate-900 border border-slate-800 relative flex flex-col justify-between hover:border-emerald-500/50 transition-all shadow-xl">
+            <div>
+              <span className="px-3 py-1 rounded-md bg-emerald-500/10 text-emerald-400 text-xs font-bold uppercase">
+                Annual Plan
+              </span>
+              <div className="mt-4 flex items-baseline gap-2">
+                <span className="text-4xl font-black text-white">5,000 FCFA</span>
+                <span className="text-slate-400 text-sm">/ Academic Year</span>
+              </div>
+              <p className="text-xs text-slate-400 mt-2">
+                Ideal for individual Cameroonian secondary schools for one full academic year.
+              </p>
+
+              <ul className="mt-6 space-y-3 text-xs text-slate-300">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Unlimited Class Streams & Single-Arm Forms</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Full CP-SAT Solver & Guided Slot Allocator</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Class, Teacher & Institutional Master PDF Exports</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>MTN Mobile Money & Orange Money Support</span>
+                </li>
+              </ul>
+            </div>
+
+            <a
+              href={WHATSAPP_ANNUAL_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-8 w-full py-3.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-500 text-white text-sm text-center shadow-lg shadow-emerald-950/50 transition-all flex items-center justify-center gap-2"
+            >
+              <PhoneCall className="w-4 h-4" /> Subscribe for 5,000 FCFA on WhatsApp
+            </a>
+          </div>
+
+          {/* Tier 2: 50,000 FCFA / Lifetime Access */}
+          <div className="p-8 rounded-2xl bg-gradient-to-b from-indigo-950/60 to-slate-900 border border-indigo-500/40 relative flex flex-col justify-between hover:border-indigo-400 transition-all shadow-2xl glow-blue-active">
+            <div className="absolute -top-3 right-6 px-3 py-1 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-[10px] font-black tracking-wider uppercase shadow-md">
+              Best Value • Lifetime Access
+            </div>
+
+            <div>
+              <span className="px-3 py-1 rounded-md bg-indigo-500/20 text-indigo-300 text-xs font-bold uppercase">
+                Lifetime Plan
+              </span>
+              <div className="mt-4 flex items-baseline gap-2">
+                <span className="text-4xl font-black text-white">50,000 FCFA</span>
+                <span className="text-slate-400 text-sm">/ Lifetime License</span>
+              </div>
+              <p className="text-xs text-indigo-200 mt-2">
+                One-time payment for permanent unlimited lifetime access for your institution.
+              </p>
+
+              <ul className="mt-6 space-y-3 text-xs text-slate-200">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <span>Permanent Unlimited Lifetime Access</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <span>Priority CP-SAT Solver Server Allocation</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <span>Dedicated Support by Neurivex Group Engineers</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <span>Free Future Updates & Subsystem Enhancements</span>
+                </li>
+              </ul>
+            </div>
+
+            <a
+              href={WHATSAPP_LIFETIME_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-8 w-full py-3.5 rounded-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm text-center shadow-lg shadow-indigo-950/50 transition-all flex items-center justify-center gap-2"
+            >
+              <Zap className="w-4 h-4 fill-white" /> Get Lifetime Plan (50,000 FCFA) on WhatsApp
+            </a>
           </div>
         </div>
       </section>

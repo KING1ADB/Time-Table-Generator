@@ -17,6 +17,7 @@ import {
   Copy,
   Check,
   Key,
+  CreditCard,
 } from 'lucide-react';
 
 interface SchoolsClientProps {
@@ -147,10 +148,10 @@ Portal URL: http://localhost:3000/login`;
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 p-6 rounded-xl border border-slate-800">
         <div>
           <h1 className="text-2xl font-extrabold text-white tracking-tight">
-            School Tenant Management
+            School Tenant & Subscription Management
           </h1>
           <p className="text-slate-400 text-xs mt-1">
-            Provision new school tenants with auto-generated unique credentials (`principal@schoolname.cm`)
+            Manage school licenses (5,000 FCFA Annual / 50,000 FCFA Lifetime) & auto-generated credentials (`principal@schoolname.cm`)
           </p>
         </div>
 
@@ -201,10 +202,10 @@ Portal URL: http://localhost:3000/login`;
               <thead>
                 <tr className="bg-slate-950 border-b border-slate-800 text-xs font-semibold text-slate-400">
                   <th className="py-3 px-4">School Name & Code</th>
-                  <th className="py-3 px-4">Type</th>
+                  <th className="py-3 px-4">Subsystem</th>
+                  <th className="py-3 px-4">Subscription Plan</th>
                   <th className="py-3 px-4">Admin Account</th>
                   <th className="py-3 px-4 text-center">Classes</th>
-                  <th className="py-3 px-4 text-center">Teachers</th>
                   <th className="py-3 px-4 text-center">Status</th>
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
@@ -230,6 +231,13 @@ Portal URL: http://localhost:3000/login`;
                       </td>
 
                       <td className="p-4 text-slate-300">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-bold text-[11px]">
+                          <CreditCard className="w-3.5 h-3.5" />
+                          5,000 FCFA / Year
+                        </span>
+                      </td>
+
+                      <td className="p-4 text-slate-300">
                         <div className="space-y-0.5">
                           <span className="font-semibold text-white block">{adminUser?.name || 'N/A'}</span>
                           <span className="text-slate-400 text-[11px]">{adminUser?.email || 'N/A'}</span>
@@ -238,10 +246,6 @@ Portal URL: http://localhost:3000/login`;
 
                       <td className="p-4 text-center font-bold text-white">
                         {s._count?.classes || 0}
-                      </td>
-
-                      <td className="p-4 text-center font-bold text-white">
-                        {s._count?.teachers || 0}
                       </td>
 
                       <td className="p-4 text-center">

@@ -4,8 +4,9 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import ThemeToggle from '@/components/theme/ThemeToggle';
-import { LayoutDashboard, School, ArrowLeft, Menu, X, Sparkles } from 'lucide-react';
+import { LayoutDashboard, School, ArrowLeft, Menu, X, Sparkles, LogOut } from 'lucide-react';
 
 const adminNavItems = [
   { href: '/admin', label: 'Platform Overview', icon: LayoutDashboard },
@@ -22,6 +23,10 @@ export default function AdminSidebarWrapper({ userEmail, children }: AdminSideba
   const [isOpen, setIsOpen] = useState(false);
 
   const activeNavItem = adminNavItems.find((item) => item.href === pathname) || adminNavItems[0];
+
+  function handleSignOut() {
+    signOut({ callbackUrl: '/' });
+  }
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-slate-950 text-slate-100 font-sans">
@@ -128,6 +133,15 @@ export default function AdminSidebarWrapper({ userEmail, children }: AdminSideba
                 <p className="text-slate-300 font-semibold truncate">{userEmail}</p>
               </div>
 
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 transition-colors text-xs font-semibold border border-slate-800 cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5 text-red-400" />
+                Sign Out
+              </button>
+
               {/* Company Branding Footer */}
               <div className="pt-2 text-center text-[10px] text-slate-500 border-t border-slate-800/60">
                 <span>Powered by </span>
@@ -199,6 +213,15 @@ export default function AdminSidebarWrapper({ userEmail, children }: AdminSideba
             <p className="text-slate-500">Logged in as:</p>
             <p className="text-slate-300 font-semibold truncate">{userEmail}</p>
           </div>
+
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 transition-colors text-xs font-semibold border border-slate-800 cursor-pointer"
+          >
+            <LogOut className="w-3.5 h-3.5 text-red-400" />
+            Sign Out
+          </button>
 
           {/* Company Branding Footer */}
           <div className="pt-2 text-center text-[10px] text-slate-500 border-t border-slate-800/60">

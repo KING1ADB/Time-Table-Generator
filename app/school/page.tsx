@@ -11,7 +11,12 @@ import {
   AlertTriangle,
   ArrowRight,
   Settings,
+  CreditCard,
+  PhoneCall,
+  Zap,
 } from 'lucide-react';
+
+const WHATSAPP_URL = 'https://wa.me/237654087582?text=Hello%20Neurivex%20Group!%20I%20want%20to%20manage/renew%20the%20subscription%20for%20my%20school.';
 
 export default async function SchoolDashboardPage() {
   const school = await getAuthenticatedSchool();
@@ -32,16 +37,41 @@ export default async function SchoolDashboardPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-3xl font-bold text-white tracking-tight">{schoolName}</h1>
-          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
-            {school?.type || 'BILINGUAL'}
-          </span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-bold text-white tracking-tight">{schoolName}</h1>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+              {school?.type || 'BILINGUAL'}
+            </span>
+          </div>
+          <p className="text-slate-400 mt-1 text-xs">
+            Tenant Administration Dashboard — Manage master data, setup schedule, and run automatic timetable generator.
+          </p>
         </div>
-        <p className="text-slate-400 mt-1">
-          Tenant Administration Dashboard — Manage master data, setup schedules, and configure teaching assignments for automatic timetable generation.
-        </p>
+
+        {/* Subscription Status Pill */}
+        <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 p-3 rounded-xl">
+          <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+            <CreditCard className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-white">Subscription:</span>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
+                ● ACTIVE (5,000 FCFA / Year)
+              </span>
+            </div>
+            <a
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 mt-0.5"
+            >
+              <PhoneCall className="w-3 h-3" /> Upgrade to 50,000 FCFA Lifetime
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* Pre-Validation Banner */}
