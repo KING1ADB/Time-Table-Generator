@@ -66,12 +66,6 @@ function LoginForm() {
     }
   };
 
-  const fillCredentials = (userEmail: string, userPass: string) => {
-    setEmail(userEmail);
-    setPassword(userPass);
-    setError('');
-  };
-
   return (
     <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-8 shadow-2xl backdrop-blur-xl">
       {error && (
@@ -93,7 +87,7 @@ function LoginForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="principal@mboacollege.cm"
+              placeholder="principal@schoolname.cm"
               className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
             />
           </div>
@@ -132,42 +126,6 @@ function LoginForm() {
           )}
         </button>
       </form>
-
-      {/* Quick Seed Credentials Card */}
-      <div className="mt-8 pt-6 border-t border-slate-800/80">
-        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">
-          ⚡ Quick Test Credentials
-        </p>
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={() => fillCredentials('principal@mboacollege.cm', 'MboaCollege2026!')}
-            className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 text-left hover:border-slate-700 transition-colors flex items-center justify-between text-xs"
-          >
-            <div>
-              <span className="text-white font-medium block">Mboa College Admin</span>
-              <span className="text-slate-500 text-[10px]">principal@mboacollege.cm</span>
-            </div>
-            <span className="text-[10px] text-blue-400 font-semibold bg-blue-500/10 px-2 py-0.5 rounded">
-              Fill
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => fillCredentials('admin@timetabler.cm', 'AdminPass123!')}
-            className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 text-left hover:border-slate-700 transition-colors flex items-center justify-between text-xs"
-          >
-            <div>
-              <span className="text-white font-medium block">System Super Admin</span>
-              <span className="text-slate-500 text-[10px]">admin@timetabler.cm</span>
-            </div>
-            <span className="text-[10px] text-purple-400 font-semibold bg-purple-500/10 px-2 py-0.5 rounded">
-              Fill
-            </span>
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
