@@ -8,7 +8,19 @@ interface TeacherTimetableGridProps {
   onSelectTeacher: (id: string) => void;
   days: { day: string }[];
   periods: { id: string; periodNumber: number; startTime: string; endTime: string }[];
+  breaks?: { id: string; name: string; startTime: string; endTime: string }[];
   entries: any[];
+}
+
+interface TimelineSlot {
+  type: 'PERIOD' | 'BREAK';
+  id: string;
+  name: string;
+  periodNumber?: number;
+  startTime: string;
+  endTime: string;
+  periodObj?: any;
+  breakObj?: any;
 }
 
 export default function TeacherTimetableGrid({
@@ -17,6 +29,7 @@ export default function TeacherTimetableGrid({
   onSelectTeacher,
   days,
   periods,
+  breaks = [],
   entries,
 }: TeacherTimetableGridProps) {
   const selectedTeacher = teachers.find((t) => t.id === selectedTeacherId);
@@ -34,6 +47,33 @@ export default function TeacherTimetableGrid({
 
   // Workload metrics
   const totalAssignedPeriods = teacherEntries.length;
+
+  // Build Chronological Timeline
+  const timeline: TimelineSlot[] = [];
+  periods.forEach((p) => {
+    timeline.push({
+      type: 'PERIOD',
+      id: p.id,
+      name: `P${p.periodNumber}`,
+      periodNumber: p.periodNumber,
+      startTime: p.startTime,
+      endTime: p.endTime,
+      periodObj: p,
+    });
+  });
+
+  breaks.forEach((b) => {
+    timeline.push({
+      type: 'BREAK',
+      id: b.id || `break_${b.name}`,
+      name: b.name,
+      startTime: b.startTime,
+      endTime: b.endTime,
+      breakObj: b,
+    });
+  });
+
+  timeline.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   return (
     <div className="space-y-4">
@@ -88,7 +128,7 @@ export default function TeacherTimetableGrid({
           <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-slate-950 border-b border-slate-800 text-xs font-semibold text-slate-300">
-                <th className="py-3 px-4 w-32 border-r border-slate-800 text-slate-400">
+                <th className="py-3 px-4 w-36 border-r border-slate-800 text-slate-400">
                   Time / Slot
                 </th>
                 {days.map((d) => (
@@ -99,54 +139,86 @@ export default function TeacherTimetableGrid({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 text-xs">
-              {periods.map((period) => (
-                <tr key={period.id} className="hover:bg-slate-850/40 transition-colors">
-                  <td className="p-3 border-r border-slate-800 bg-slate-950/60 text-slate-400 font-medium align-middle">
-                    <span className="block font-bold text-white text-sm">
-                      Period {period.periodNumber}
-                    </span>
-                    <span className="text-[11px] text-slate-400">
-                      {period.startTime} – {period.endTime}
-                    </span>
-                  </td>
+              {timeline.map((slot) => {
+                if (slot.type === 'BREAK') {
+                  return (
+                    <tr key={slot.id} className="bg-amber-950/20 border-y border-amber-500/20">
+                      <td className="p-3 bg-amber-950/40 text-amber-300 font-bold text-xs border-r border-amber-500/20 align-middle">
+                        <span className="block text-amber-200 font-extrabold">☕ {slot.name}</span>
+                        <span className="text-[10px] text-amber-400/80">
+                          {slot.startTime} – {slot.endTime}
+                        </span>
+                      </td>
+                      <td
+                        colSpan={days.length}
+                        className="p-3 text-center bg-amber-500/10 text-amber-300 font-bold text-xs tracking-wider"
+                      >
+                        ☕ RECESS / BREAK INTERVAL ({slot.startTime} – {slot.endTime}) — NO LESSONS
+                      </td>
+                    </tr>
+                  );
+                }
 
-                  {days.map((d) => {
-                    const entry = entryMap[`${d.day}_${period.id}`];
-                    const classSection = entry?.classSection;
-                    const subject = entry?.teachingAssignment?.subject;
-                    const room = entry?.room;
+                const period = slot.periodObj;
 
-                    return (
-                      <td key={d.day} className="p-2 border-r border-slate-800 align-top h-24">
-                        {entry ? (
-                          <div className="h-full p-2.5 rounded-lg border bg-indigo-500/15 border-indigo-500/30 text-indigo-200 flex flex-col justify-between">
-                            <div className="space-y-1">
-                              <span className="font-bold text-sm text-white tracking-tight line-clamp-1">
-                                {subject?.name}
-                              </span>
-                              <div className="flex items-center gap-1.5 text-xs text-indigo-300">
-                                <School className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                                <span className="font-semibold">{classSection?.name}</span>
+                return (
+                  <tr key={slot.id} className="hover:bg-slate-850/40 transition-colors">
+                    <td className="p-3 border-r border-slate-800 bg-slate-950/60 text-slate-400 font-medium align-middle">
+                      <span className="block font-bold text-white text-sm">
+                        Period {period.periodNumber}
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        {period.startTime} – {period.endTime}
+                      </span>
+                    </td>
+
+                    {days.map((d) => {
+                      const entry = entryMap[`${d.day}_${period.id}`];
+                      const classSection = entry?.classSection;
+                      const subject = entry?.teachingAssignment?.subject;
+                      const teacher = entry?.teachingAssignment?.teacher;
+                      const room = entry?.room;
+
+                      return (
+                        <td key={d.day} className="p-2 border-r border-slate-800 align-top h-24">
+                          {entry ? (
+                            <div className="h-full p-2.5 rounded-lg border bg-indigo-500/15 border-indigo-500/30 text-indigo-200 flex flex-col justify-between">
+                              <div className="space-y-1">
+                                <span className="font-extrabold text-sm text-white tracking-tight line-clamp-1 block">
+                                  {subject?.name}
+                                </span>
+                                <div className="flex items-center gap-1.5 text-xs text-indigo-300">
+                                  <School className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                  <span className="font-semibold">{classSection?.name}</span>
+                                </div>
+                              </div>
+
+                              <div className="pt-2 border-t border-white/10 space-y-0.5 text-[11px]">
+                                {teacher && (
+                                  <div className="flex items-center gap-1.5 text-blue-300 font-bold">
+                                    <User className="w-3 h-3 shrink-0 text-blue-400" />
+                                    <span className="truncate">👨‍🏫 {teacher.name}</span>
+                                  </div>
+                                )}
+                                {room && (
+                                  <div className="flex items-center gap-1.5 text-slate-300">
+                                    <MapPin className="w-3 h-3 shrink-0 text-slate-400" />
+                                    <span className="truncate">📍 {room.name}</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
-
-                            {room && (
-                              <div className="pt-1 border-t border-white/10 flex items-center gap-1.5 text-[11px] text-slate-300">
-                                <MapPin className="w-3 h-3 shrink-0 text-slate-400" />
-                                <span className="truncate">{room.name}</span>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="h-full rounded-lg border border-dashed border-slate-800 flex items-center justify-center text-slate-500 text-[11px] bg-slate-950/20">
-                            Free Period
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
+                          ) : (
+                            <div className="h-full rounded-lg border border-dashed border-slate-800 flex items-center justify-center text-slate-500 text-[11px] bg-slate-950/20">
+                              Free Period
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

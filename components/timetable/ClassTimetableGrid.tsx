@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Lock, Unlock, School, MapPin, User, GripVertical } from 'lucide-react';
+import { Lock, Unlock, School, MapPin, User, GripVertical, Plus } from 'lucide-react';
 import { DisplayMode } from './ViewToggle';
 import EditSlotModal from './EditSlotModal';
 import { validateSlotMove } from '@/lib/timetable/conflictEngine';
@@ -24,6 +24,7 @@ interface ClassTimetableGridProps {
     targetPeriodSlotId: string
   ) => Promise<{ success: boolean; error?: string; conflicts?: string[] }>;
   onConflictAlert?: (conflicts: string[]) => void;
+  onOpenGuidedAllocator?: (classSectionId: string, day: string, periodSlotId: string) => void;
 }
 
 const SUBJECT_COLORS = [
@@ -46,6 +47,17 @@ function getSubjectColor(name: string = '') {
   return SUBJECT_COLORS[index];
 }
 
+interface TimelineSlot {
+  type: 'PERIOD' | 'BREAK';
+  id: string;
+  name: string;
+  periodNumber?: number;
+  startTime: string;
+  endTime: string;
+  periodObj?: any;
+  breakObj?: any;
+}
+
 export default function ClassTimetableGrid({
   selectedSectionId,
   classSections,
@@ -60,6 +72,7 @@ export default function ClassTimetableGrid({
   onUpdateRoom,
   onMoveOrSwapEntry,
   onConflictAlert,
+  onOpenGuidedAllocator,
 }: ClassTimetableGridProps) {
   const [selectedEntryForEdit, setSelectedEntryForEdit] = useState<any | null>(null);
   const [draggedEntry, setDraggedEntry] = useState<any | null>(null);
@@ -74,6 +87,33 @@ export default function ClassTimetableGrid({
   }
 
   const selectedSection = classSections.find((s) => s.id === selectedSectionId);
+
+  // Build Chronological Timeline (Interleaving Periods & Breaks)
+  const timeline: TimelineSlot[] = [];
+  periods.forEach((p) => {
+    timeline.push({
+      type: 'PERIOD',
+      id: p.id,
+      name: `P${p.periodNumber}`,
+      periodNumber: p.periodNumber,
+      startTime: p.startTime,
+      endTime: p.endTime,
+      periodObj: p,
+    });
+  });
+
+  breaks.forEach((b) => {
+    timeline.push({
+      type: 'BREAK',
+      id: b.id || `break_${b.name}`,
+      name: b.name,
+      startTime: b.startTime,
+      endTime: b.endTime,
+      breakObj: b,
+    });
+  });
+
+  timeline.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   // Drag and Drop Handlers
   function handleDragStart(e: React.DragEvent, entry: any) {
@@ -100,7 +140,6 @@ export default function ClassTimetableGrid({
       return;
     }
 
-    // Perform client-side diagnostic check
     const diagnostic = validateSlotMove(
       entries,
       draggedEntry,
@@ -136,7 +175,7 @@ export default function ClassTimetableGrid({
               {selectedSection?.name || 'Select Class Stream'}
             </h2>
             <p className="text-xs text-slate-400">
-              Interactive Grid: Drag slots to swap/move lessons. Click cell to edit or lock.
+              Cameroonian Daily Schedule with Interleaved Breaks & Teacher Workloads.
             </p>
           </div>
         </div>
@@ -163,7 +202,7 @@ export default function ClassTimetableGrid({
           <table className="w-full text-left border-collapse min-w-[750px]">
             <thead>
               <tr className="bg-slate-950 border-b border-slate-800 text-xs font-semibold text-slate-300">
-                <th className="py-3 px-4 w-32 border-r border-slate-800 text-slate-400">
+                <th className="py-3 px-4 w-36 border-r border-slate-800 text-slate-400">
                   Time / Slot
                 </th>
                 {days.map((d) => (
@@ -174,130 +213,168 @@ export default function ClassTimetableGrid({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 text-xs">
-              {periods.map((period, pIdx) => (
-                <tr key={period.id} className="hover:bg-slate-850/40 transition-colors">
-                  <td className="p-3 border-r border-slate-800 bg-slate-950/60 text-slate-400 font-medium align-middle">
-                    <span className="block font-bold text-white text-sm">
-                      Period {period.periodNumber}
-                    </span>
-                    <span className="text-[11px] text-slate-400">
-                      {period.startTime} – {period.endTime}
-                    </span>
-                  </td>
+              {timeline.map((slot, sIdx) => {
+                if (slot.type === 'BREAK') {
+                  return (
+                    <tr key={slot.id} className="bg-amber-950/20 border-y border-amber-500/20">
+                      <td className="p-3 bg-amber-950/40 text-amber-300 font-bold text-xs border-r border-amber-500/20 align-middle">
+                        <span className="block text-amber-200 font-extrabold">☕ {slot.name}</span>
+                        <span className="text-[10px] text-amber-400/80">
+                          {slot.startTime} – {slot.endTime}
+                        </span>
+                      </td>
+                      <td
+                        colSpan={days.length}
+                        className="p-3 text-center bg-amber-500/10 text-amber-300 font-bold text-xs tracking-wider"
+                      >
+                        ☕ RECESS / BREAK INTERVAL ({slot.startTime} – {slot.endTime}) — NO LESSONS
+                      </td>
+                    </tr>
+                  );
+                }
 
-                  {days.map((d) => {
-                    const entry = entryMap[`${d.day}_${period.id}`];
+                const period = slot.periodObj;
 
-                    // Merge check in UNIFIED mode
-                    if (displayMode === 'UNIFIED' && pIdx > 0) {
-                      const prevPeriod = periods[pIdx - 1];
-                      const prevEntry = entryMap[`${d.day}_${prevPeriod.id}`];
-                      if (
-                        entry &&
-                        prevEntry &&
-                        entry.teachingAssignmentId === prevEntry.teachingAssignmentId &&
-                        entry.roomId === prevEntry.roomId
-                      ) {
-                        return null;
-                      }
-                    }
+                return (
+                  <tr key={slot.id} className="hover:bg-slate-850/40 transition-colors">
+                    <td className="p-3 border-r border-slate-800 bg-slate-950/60 text-slate-400 font-medium align-middle">
+                      <span className="block font-bold text-white text-sm">
+                        Period {period.periodNumber}
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        {period.startTime} – {period.endTime}
+                      </span>
+                    </td>
 
-                    let rowSpan = 1;
-                    if (displayMode === 'UNIFIED' && entry) {
-                      for (let k = pIdx + 1; k < periods.length; k++) {
-                        const nextP = periods[k];
-                        const nextE = entryMap[`${d.day}_${nextP.id}`];
-                        if (
-                          nextE &&
-                          nextE.teachingAssignmentId === entry.teachingAssignmentId &&
-                          nextE.roomId === entry.roomId
-                        ) {
-                          rowSpan++;
-                        } else {
-                          break;
+                    {days.map((d) => {
+                      const entry = entryMap[`${d.day}_${period.id}`];
+
+                      // Merge check in UNIFIED mode
+                      if (displayMode === 'UNIFIED' && sIdx > 0) {
+                        const prevSlot = timeline[sIdx - 1];
+                        if (prevSlot && prevSlot.type === 'PERIOD') {
+                          const prevEntry = entryMap[`${d.day}_${prevSlot.id}`];
+                          if (
+                            entry &&
+                            prevEntry &&
+                            entry.teachingAssignmentId === prevEntry.teachingAssignmentId &&
+                            entry.roomId === prevEntry.roomId
+                          ) {
+                            return null;
+                          }
                         }
                       }
-                    }
 
-                    const subject = entry?.teachingAssignment?.subject;
-                    const teacher = entry?.teachingAssignment?.teacher;
-                    const room = entry?.room;
-                    const colorStyle = entry ? getSubjectColor(subject?.name) : '';
+                      let rowSpan = 1;
+                      if (displayMode === 'UNIFIED' && entry) {
+                        for (let k = sIdx + 1; k < timeline.length; k++) {
+                          const nextSlot = timeline[k];
+                          if (nextSlot.type === 'PERIOD') {
+                            const nextE = entryMap[`${d.day}_${nextSlot.id}`];
+                            if (
+                              nextE &&
+                              nextE.teachingAssignmentId === entry.teachingAssignmentId &&
+                              nextE.roomId === entry.roomId
+                            ) {
+                              rowSpan++;
+                            } else {
+                              break;
+                            }
+                          } else {
+                            break;
+                          }
+                        }
+                      }
 
-                    return (
-                      <td
-                        key={d.day}
-                        rowSpan={rowSpan}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, d.day, period.id)}
-                        className="p-2 border-r border-slate-800 align-top h-24 transition-colors"
-                      >
-                        {entry ? (
-                          <div
-                            draggable={!entry.isLocked}
-                            onDragStart={(e) => handleDragStart(e, entry)}
-                            onClick={() => setSelectedEntryForEdit(entry)}
-                            className={`h-full p-2.5 rounded-lg border flex flex-col justify-between cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg ${colorStyle} ${
-                              entry.isLocked ? 'ring-1 ring-amber-500/50' : 'hover:border-white/40'
-                            }`}
-                          >
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="font-bold text-sm tracking-tight line-clamp-1 flex items-center gap-1">
-                                  {!entry.isLocked && (
-                                    <GripVertical className="w-3 h-3 text-slate-400 opacity-60 shrink-0 cursor-grab" />
-                                  )}
-                                  {subject?.name}
+                      const subject = entry?.teachingAssignment?.subject;
+                      const teacher = entry?.teachingAssignment?.teacher;
+                      const room = entry?.room;
+                      const colorStyle = entry ? getSubjectColor(subject?.name) : '';
+
+                      return (
+                        <td
+                          key={d.day}
+                          rowSpan={rowSpan}
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleDrop(e, d.day, period.id)}
+                          className="p-2 border-r border-slate-800 align-top h-24 transition-colors"
+                        >
+                          {entry ? (
+                            <div
+                              draggable={!entry.isLocked}
+                              onDragStart={(e) => handleDragStart(e, entry)}
+                              onClick={() => setSelectedEntryForEdit(entry)}
+                              className={`h-full p-2.5 rounded-lg border flex flex-col justify-between cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg ${colorStyle} ${
+                                entry.isLocked ? 'ring-1 ring-amber-500/50' : 'hover:border-white/40'
+                              }`}
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="font-extrabold text-sm tracking-tight line-clamp-1 flex items-center gap-1 text-white">
+                                    {!entry.isLocked && (
+                                      <GripVertical className="w-3 h-3 text-slate-400 opacity-60 shrink-0 cursor-grab" />
+                                    )}
+                                    {subject?.name}
+                                  </span>
+
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onToggleLock(entry.id, !entry.isLocked);
+                                    }}
+                                    title={entry.isLocked ? 'Locked (Click to unlock)' : 'Unlocked (Click to lock)'}
+                                    className={`p-1 rounded hover:bg-slate-800/60 transition-colors ${
+                                      entry.isLocked ? 'text-amber-400 font-bold' : 'text-slate-500 hover:text-slate-300'
+                                    }`}
+                                  >
+                                    {entry.isLocked ? (
+                                      <Lock className="w-3.5 h-3.5" />
+                                    ) : (
+                                      <Unlock className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                </div>
+                                <span className="inline-block text-[10px] font-mono opacity-80 uppercase px-1.5 py-0.5 rounded bg-black/20">
+                                  {subject?.code}
                                 </span>
-
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onToggleLock(entry.id, !entry.isLocked);
-                                  }}
-                                  title={entry.isLocked ? 'Locked (Click to unlock)' : 'Unlocked (Click to lock)'}
-                                  className={`p-1 rounded hover:bg-slate-800/60 transition-colors ${
-                                    entry.isLocked ? 'text-amber-400 font-bold' : 'text-slate-500 hover:text-slate-300'
-                                  }`}
-                                >
-                                  {entry.isLocked ? (
-                                    <Lock className="w-3.5 h-3.5" />
-                                  ) : (
-                                    <Unlock className="w-3.5 h-3.5" />
-                                  )}
-                                </button>
                               </div>
-                              <span className="inline-block text-[10px] font-mono opacity-80 uppercase px-1.5 py-0.5 rounded bg-black/20">
-                                {subject?.code}
-                              </span>
-                            </div>
 
-                            <div className="pt-2 space-y-1 border-t border-white/10 text-[11px] font-medium opacity-90">
-                              {teacher && (
-                                <div className="flex items-center gap-1.5">
-                                  <User className="w-3 h-3 shrink-0" />
-                                  <span className="truncate">{teacher.name}</span>
-                                </div>
-                              )}
-                              {room && (
-                                <div className="flex items-center gap-1.5">
-                                  <MapPin className="w-3 h-3 shrink-0" />
-                                  <span className="truncate">{room.name}</span>
-                                </div>
-                              )}
+                              {/* Teacher Name Rendered Below Subject Name */}
+                              <div className="pt-2 space-y-1 border-t border-white/10 text-[11px] font-medium opacity-90">
+                                {teacher && (
+                                  <div className="flex items-center gap-1.5 text-blue-300 font-bold">
+                                    <User className="w-3.5 h-3.5 shrink-0 text-blue-400" />
+                                    <span className="truncate">👨‍🏫 {teacher.name}</span>
+                                  </div>
+                                )}
+                                {room && (
+                                  <div className="flex items-center gap-1.5 text-slate-300">
+                                    <MapPin className="w-3 h-3 shrink-0" />
+                                    <span className="truncate">📍 {room.name}</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="h-full rounded-lg border border-dashed border-slate-800 flex items-center justify-center text-slate-600 text-[11px] bg-slate-950/20 hover:border-slate-700 transition-colors">
-                            Drop Here / Free
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onOpenGuidedAllocator &&
+                                onOpenGuidedAllocator(selectedSectionId, d.day, period.id)
+                              }
+                              className="w-full h-full rounded-lg border border-dashed border-slate-800 flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-emerald-400 hover:border-emerald-500/50 text-[11px] bg-slate-950/20 hover:bg-emerald-950/10 transition-colors group"
+                            >
+                              <Plus className="w-4 h-4 text-slate-600 group-hover:text-emerald-400 transition-colors" />
+                              <span>+ Assign Lesson</span>
+                            </button>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

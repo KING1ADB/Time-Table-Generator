@@ -7,13 +7,26 @@ interface MasterTimetableGridProps {
   classSections: { id: string; name: string }[];
   days: { day: string }[];
   periods: { id: string; periodNumber: number; startTime: string; endTime: string }[];
+  breaks?: { id: string; name: string; startTime: string; endTime: string }[];
   entries: any[];
+}
+
+interface TimelineSlot {
+  type: 'PERIOD' | 'BREAK';
+  id: string;
+  name: string;
+  periodNumber?: number;
+  startTime: string;
+  endTime: string;
+  periodObj?: any;
+  breakObj?: any;
 }
 
 export default function MasterTimetableGrid({
   classSections,
   days,
   periods,
+  breaks = [],
   entries,
 }: MasterTimetableGridProps) {
   const [selectedDay, setSelectedDay] = useState<string>(days[0]?.day || 'MONDAY');
@@ -23,6 +36,33 @@ export default function MasterTimetableGrid({
   for (const e of entries) {
     entryMap[`${e.classSectionId}_${e.day}_${e.periodSlotId}`] = e;
   }
+
+  // Build Chronological Timeline
+  const timeline: TimelineSlot[] = [];
+  periods.forEach((p) => {
+    timeline.push({
+      type: 'PERIOD',
+      id: p.id,
+      name: `P${p.periodNumber}`,
+      periodNumber: p.periodNumber,
+      startTime: p.startTime,
+      endTime: p.endTime,
+      periodObj: p,
+    });
+  });
+
+  breaks.forEach((b) => {
+    timeline.push({
+      type: 'BREAK',
+      id: b.id || `break_${b.name}`,
+      name: b.name,
+      startTime: b.startTime,
+      endTime: b.endTime,
+      breakObj: b,
+    });
+  });
+
+  timeline.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   return (
     <div className="space-y-4">
@@ -73,10 +113,17 @@ export default function MasterTimetableGrid({
                 <th className="py-3 px-4 w-40 border-r border-slate-800 text-slate-400">
                   Class Stream
                 </th>
-                {periods.map((p) => (
-                  <th key={p.id} className="py-3 px-3 text-center border-r border-slate-800">
-                    <span className="block font-bold text-white">P{p.periodNumber}</span>
-                    <span className="text-[10px] text-slate-500">{p.startTime}</span>
+                {timeline.map((slot) => (
+                  <th
+                    key={slot.id}
+                    className={`py-3 px-3 text-center border-r border-slate-800 ${
+                      slot.type === 'BREAK' ? 'bg-amber-950/40 text-amber-300' : ''
+                    }`}
+                  >
+                    <span className="block font-bold text-white">
+                      {slot.type === 'BREAK' ? `☕ ${slot.name}` : `P${slot.periodNumber}`}
+                    </span>
+                    <span className="text-[10px] text-slate-400">{slot.startTime}</span>
                   </th>
                 ))}
               </tr>
@@ -88,30 +135,42 @@ export default function MasterTimetableGrid({
                     {sec.name}
                   </td>
 
-                  {periods.map((p) => {
-                    const entry = entryMap[`${sec.id}_${selectedDay}_${p.id}`];
+                  {timeline.map((slot) => {
+                    if (slot.type === 'BREAK') {
+                      return (
+                        <td
+                          key={slot.id}
+                          className="p-2 border-r border-slate-800 bg-amber-500/10 text-amber-300 text-center font-bold text-[10px] align-middle"
+                        >
+                          ☕ BREAK
+                        </td>
+                      );
+                    }
+
+                    const period = slot.periodObj;
+                    const entry = entryMap[`${sec.id}_${selectedDay}_${period.id}`];
                     const subject = entry?.teachingAssignment?.subject;
                     const teacher = entry?.teachingAssignment?.teacher;
                     const room = entry?.room;
 
                     return (
-                      <td key={p.id} className="p-2 border-r border-slate-800 align-top h-20 w-32">
+                      <td key={slot.id} className="p-2 border-r border-slate-800 align-top h-20 w-32">
                         {entry ? (
                           <div className="h-full p-2 rounded-md bg-slate-800/80 border border-slate-700/60 text-slate-200 flex flex-col justify-between">
                             <div>
-                              <span className="font-bold text-xs text-emerald-300 block truncate">
-                                {subject?.code || subject?.name}
+                              <span className="font-extrabold text-xs text-white block truncate">
+                                {subject?.name}
                               </span>
-                              <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5 truncate">
-                                <User className="w-2.5 h-2.5 text-slate-500 shrink-0" />
-                                {teacher?.name.split(' ')[0]}
+                              <span className="text-[10px] text-blue-300 font-bold flex items-center gap-1 mt-0.5 truncate">
+                                <User className="w-2.5 h-2.5 text-blue-400 shrink-0" />
+                                👨‍🏫 {teacher?.name}
                               </span>
                             </div>
 
                             {room && (
-                              <span className="text-[9px] text-slate-500 flex items-center gap-1 mt-1 truncate">
+                              <span className="text-[9px] text-slate-400 flex items-center gap-1 mt-1 truncate">
                                 <MapPin className="w-2.5 h-2.5 shrink-0" />
-                                {room.name}
+                                📍 {room.name}
                               </span>
                             )}
                           </div>

@@ -187,6 +187,11 @@ export async function getTimetableData(targetSchoolId?: string) {
     orderBy: { name: 'asc' },
   });
 
+  const subjects = await prisma.subject.findMany({
+    where: { schoolId },
+    orderBy: { name: 'asc' },
+  });
+
   const assignments = await prisma.teachingAssignment.findMany({
     where: { schoolId },
     include: {
@@ -222,6 +227,7 @@ export async function getTimetableData(targetSchoolId?: string) {
     classSections,
     teachers,
     rooms,
+    subjects,
     assignments,
     timetable,
   };
@@ -243,4 +249,136 @@ export async function toggleEntryLockAction(entryId: string) {
 
   revalidatePath('/school/timetable');
   return { success: true, isLocked: updated.isLocked };
+}
+
+export async function getAvailableTeachersForSlot(
+  targetSchoolId?: string,
+  day?: string,
+  periodSlotIds?: string[]
+) {
+  const schoolId = targetSchoolId || (await getAuthenticatedSchoolId());
+
+  if (!day || !periodSlotIds || periodSlotIds.length === 0) {
+    const teachers = await prisma.teacher.findMany({
+      where: { schoolId },
+      orderBy: { name: 'asc' },
+    });
+    return teachers;
+  }
+
+  // Fetch all teachers for the school
+  const teachers = await prisma.teacher.findMany({
+    where: { schoolId },
+    include: { availability: true },
+    orderBy: { name: 'asc' },
+  });
+
+  // Fetch occupied entries at this day and periodSlotId(s)
+  const occupiedEntries = await prisma.timetableEntry.findMany({
+    where: {
+      timetable: { schoolId },
+      day: day as any,
+      periodSlotId: { in: periodSlotIds },
+    },
+    include: { teachingAssignment: true },
+  });
+
+  const occupiedTeacherIds = new Set(
+    occupiedEntries.map((e) => e.teachingAssignment.teacherId)
+  );
+
+  // Filter teachers who are not occupied and not marked unavailable on this day
+  const availableTeachers = teachers.filter((t) => {
+    if (occupiedTeacherIds.has(t.id)) return false;
+
+    const isExplicitlyUnavailable = t.availability.some(
+      (a) => a.day === (day as any) && !a.isAvailable
+    );
+    return !isExplicitlyUnavailable;
+  });
+
+  return availableTeachers;
+}
+
+export async function createDirectSlotAssignmentAction(input: {
+  schoolId?: string;
+  classSectionId: string;
+  day: string;
+  periodSlotIds: string[];
+  teacherId: string;
+  subjectId: string;
+  roomId?: string;
+}) {
+  const schoolId = input.schoolId || (await getAuthenticatedSchoolId());
+
+  const academicYear = await prisma.academicYear.findFirst({
+    where: { schoolId, isCurrent: true },
+  });
+
+  if (!academicYear) {
+    return { success: false, error: 'Current academic year not found.' };
+  }
+
+  let timetable = await prisma.timetable.findFirst({
+    where: { schoolId, academicYearId: academicYear.id },
+  });
+
+  if (!timetable) {
+    timetable = await prisma.timetable.create({
+      data: {
+        name: `Master Timetable ${academicYear.year}`,
+        schoolId,
+        academicYearId: academicYear.id,
+      },
+    });
+  }
+
+  // Find or create teaching assignment
+  let assignment = await prisma.teachingAssignment.findFirst({
+    where: {
+      schoolId,
+      classSectionId: input.classSectionId,
+      teacherId: input.teacherId,
+      subjectId: input.subjectId,
+    },
+  });
+
+  if (!assignment) {
+    assignment = await prisma.teachingAssignment.create({
+      data: {
+        schoolId,
+        classSectionId: input.classSectionId,
+        teacherId: input.teacherId,
+        subjectId: input.subjectId,
+        periodsPerWeek: input.periodSlotIds.length,
+        allowDoublePeriod: input.periodSlotIds.length > 1,
+      },
+    });
+  }
+
+  // Delete any existing entries in these slots for this classSection
+  await prisma.timetableEntry.deleteMany({
+    where: {
+      timetableId: timetable.id,
+      classSectionId: input.classSectionId,
+      day: input.day as any,
+      periodSlotId: { in: input.periodSlotIds },
+    },
+  });
+
+  // Create locked entries
+  await prisma.timetableEntry.createMany({
+    data: input.periodSlotIds.map((pId) => ({
+      timetableId: timetable!.id,
+      classSectionId: input.classSectionId,
+      teachingAssignmentId: assignment!.id,
+      roomId: input.roomId || null,
+      periodSlotId: pId,
+      day: input.day as any,
+      isLocked: true,
+    })),
+  });
+
+  revalidatePath('/school/timetable');
+  return { success: true };
 }

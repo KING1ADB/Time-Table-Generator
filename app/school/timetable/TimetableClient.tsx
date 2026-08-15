@@ -13,8 +13,9 @@ import ClassTimetableGrid from '@/components/timetable/ClassTimetableGrid';
 import TeacherTimetableGrid from '@/components/timetable/TeacherTimetableGrid';
 import MasterTimetableGrid from '@/components/timetable/MasterTimetableGrid';
 import ExportPdfModal from '@/components/timetable/ExportPdfModal';
+import GuidedSlotAllocator from '@/components/timetable/GuidedSlotAllocator';
 import { OfficialSchoolHeader } from '@/components/pdf/OfficialSchoolHeader';
-import { Zap, CheckCircle2, AlertTriangle, RefreshCw, Calendar, Lock, X, Printer, FileText } from 'lucide-react';
+import { Zap, CheckCircle2, AlertTriangle, RefreshCw, Calendar, Lock, X, Printer, Sparkles } from 'lucide-react';
 
 interface TimetableClientProps {
   schoolId: string;
@@ -27,12 +28,20 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
   const [activeTab, setActiveTab] = useState<ViewTab>('CLASS');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('UNIFIED');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isGuidedAllocatorOpen, setIsGuidedAllocatorOpen] = useState(false);
+
+  const [allocatorPrefill, setAllocatorPrefill] = useState<{
+    classSectionId?: string;
+    day?: string;
+    periodSlotId?: string;
+  }>({});
 
   const school = initialData.school || { name: 'School Workspace' };
   const academicYear = initialData.academicYear || { year: '2026/2027' };
   const classSections = initialData.classSections || [];
   const teachers = initialData.teachers || [];
   const rooms = initialData.rooms || [];
+  const subjects = initialData.subjects || [];
   const days = initialData.academicYear?.days || [];
   const periods = initialData.academicYear?.periods || [];
   const breaks = initialData.academicYear?.breaks || [];
@@ -57,6 +66,11 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
   } | null>(null);
 
   const [conflictAlerts, setConflictAlerts] = useState<string[]>([]);
+
+  function handleOpenGuidedAllocator(classSectionId?: string, day?: string, periodSlotId?: string) {
+    setAllocatorPrefill({ classSectionId, day, periodSlotId });
+    setIsGuidedAllocatorOpen(true);
+  }
 
   function handleGenerate() {
     setStatusMessage(null);
@@ -145,7 +159,7 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
             )}
           </div>
           <p className="text-slate-400 text-xs mt-1">
-            Automated CP-SAT solver, drag-and-drop manual editor, real-time conflict detector & vector PDF exporter
+            CP-SAT Solver, Guided Slot Allocator, Real-time Conflict Engine & Vector PDF Exporter
           </p>
         </div>
 
@@ -156,6 +170,15 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
               <span>{lockedCount} Locked Slot(s)</span>
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={() => handleOpenGuidedAllocator(selectedSectionId)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg shadow-md transition-all"
+          >
+            <Sparkles className="w-4 h-4" />
+            + Guided Allocator
+          </button>
 
           <button
             type="button"
@@ -258,7 +281,7 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
           <div>
             <h3 className="text-lg font-bold text-white">No Timetable Generated Yet</h3>
             <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-              Click the <strong className="text-emerald-400">⚡ Run Auto-Generator</strong> button above to invoke the Python CP-SAT solver and generate your schedule.
+              Click <strong className="text-emerald-400">+ Guided Allocator</strong> or <strong className="text-emerald-400">⚡ Run Auto-Generator</strong> above to build your schedule.
             </p>
           </div>
         </div>
@@ -286,6 +309,7 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
               onUpdateRoom={handleUpdateRoom}
               onMoveOrSwapEntry={handleMoveOrSwap}
               onConflictAlert={setConflictAlerts}
+              onOpenGuidedAllocator={handleOpenGuidedAllocator}
             />
           )}
 
@@ -296,6 +320,7 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
               onSelectTeacher={setSelectedTeacherId}
               days={days}
               periods={periods}
+              breaks={breaks}
               entries={entries}
             />
           )}
@@ -305,6 +330,7 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
               classSections={classSections}
               days={days}
               periods={periods}
+              breaks={breaks}
               entries={entries}
             />
           )}
@@ -329,6 +355,21 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
           </div>
         </div>
       )}
+
+      {/* Guided Slot Allocator Modal */}
+      <GuidedSlotAllocator
+        isOpen={isGuidedAllocatorOpen}
+        onClose={() => setIsGuidedAllocatorOpen(false)}
+        schoolId={schoolId}
+        classSections={classSections}
+        days={days}
+        periods={periods}
+        subjects={subjects}
+        rooms={rooms}
+        initialClassSectionId={allocatorPrefill.classSectionId}
+        initialDay={allocatorPrefill.day}
+        initialPeriodSlotId={allocatorPrefill.periodSlotId}
+      />
 
       {/* Export & Print Modal */}
       <ExportPdfModal
