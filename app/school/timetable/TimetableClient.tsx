@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import './print.css';
 import { generateTimetableAction } from '@/lib/actions/timetableActions';
 import {
   moveOrSwapEntryAction,
@@ -11,7 +12,9 @@ import ViewToggle, { ViewTab, DisplayMode } from '@/components/timetable/ViewTog
 import ClassTimetableGrid from '@/components/timetable/ClassTimetableGrid';
 import TeacherTimetableGrid from '@/components/timetable/TeacherTimetableGrid';
 import MasterTimetableGrid from '@/components/timetable/MasterTimetableGrid';
-import { Zap, CheckCircle2, AlertTriangle, RefreshCw, Calendar, Lock, X } from 'lucide-react';
+import ExportPdfModal from '@/components/timetable/ExportPdfModal';
+import { OfficialSchoolHeader } from '@/components/pdf/OfficialSchoolHeader';
+import { Zap, CheckCircle2, AlertTriangle, RefreshCw, Calendar, Lock, X, Printer, FileText } from 'lucide-react';
 
 interface TimetableClientProps {
   schoolId: string;
@@ -23,7 +26,10 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
 
   const [activeTab, setActiveTab] = useState<ViewTab>('CLASS');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('UNIFIED');
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
+  const school = initialData.school || { name: 'Mboa Bilingual College' };
+  const academicYear = initialData.academicYear || { year: '2026/2027' };
   const classSections = initialData.classSections || [];
   const teachers = initialData.teachers || [];
   const rooms = initialData.rooms || [];
@@ -38,6 +44,9 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>(
     teachers[0]?.id || ''
   );
+
+  const selectedSectionName = classSections.find((s: any) => s.id === selectedSectionId)?.name || 'Class Stream';
+  const selectedTeacherName = teachers.find((t: any) => t.id === selectedTeacherId)?.name || 'Teacher';
 
   const [statusMessage, setStatusMessage] = useState<{
     type: 'success' | 'error';
@@ -114,10 +123,17 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
 
   const lockedCount = entries.filter((e: any) => e.isLocked).length;
 
+  const documentTitle =
+    activeTab === 'CLASS'
+      ? `CLASS TIMETABLE: ${selectedSectionName.toUpperCase()}`
+      : activeTab === 'TEACHER'
+      ? `TEACHER WORKLOAD TIMETABLE: ${selectedTeacherName.toUpperCase()}`
+      : 'INSTITUTIONAL MASTER TIMETABLE';
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Top Toolbar Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 p-6 rounded-xl border border-slate-800">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 p-6 rounded-xl border border-slate-800 no-print">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-white tracking-tight">Timetable Management Hub</h1>
@@ -129,17 +145,26 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
             )}
           </div>
           <p className="text-slate-400 text-xs mt-1">
-            Automated CP-SAT constraint solver, drag-and-drop manual editor, real-time conflict detector & granular locking (🔒)
+            Automated CP-SAT solver, drag-and-drop manual editor, real-time conflict detector & vector PDF exporter
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {lockedCount > 0 && (
             <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-semibold">
               <Lock className="w-4 h-4" />
               <span>{lockedCount} Locked Slot(s)</span>
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={() => setIsExportModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg shadow-md transition-all"
+          >
+            <Printer className="w-4 h-4" />
+            📥 Export & Print PDF
+          </button>
 
           <button
             type="button"
@@ -164,7 +189,7 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
 
       {/* Conflict Toast Alert Banner */}
       {conflictAlerts.length > 0 && (
-        <div className="p-4 rounded-xl border bg-amber-950/60 border-amber-500/40 text-amber-200 space-y-2 relative animate-fadeIn">
+        <div className="p-4 rounded-xl border bg-amber-950/60 border-amber-500/40 text-amber-200 space-y-2 relative animate-fadeIn no-print">
           <button
             type="button"
             onClick={() => setConflictAlerts([])}
@@ -187,7 +212,7 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
       {/* Status Alert Notification */}
       {statusMessage && (
         <div
-          className={`p-4 rounded-xl border flex items-start gap-3 text-sm ${
+          className={`p-4 rounded-xl border flex items-start gap-3 text-sm no-print ${
             statusMessage.type === 'success'
               ? 'bg-emerald-950/50 border-emerald-500/30 text-emerald-200'
               : 'bg-red-950/50 border-red-500/30 text-red-200'
@@ -217,14 +242,16 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
       )}
 
       {/* View Toggle Bar */}
-      <ViewToggle
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        displayMode={displayMode}
-        onDisplayModeChange={setDisplayMode}
-      />
+      <div className="no-print">
+        <ViewToggle
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          displayMode={displayMode}
+          onDisplayModeChange={setDisplayMode}
+        />
+      </div>
 
-      {/* Grid Content Views */}
+      {/* Grid Content Printable Container */}
       {entries.length === 0 ? (
         <div className="p-12 text-center bg-slate-900 rounded-xl border border-slate-800 space-y-4">
           <Calendar className="w-12 h-12 text-slate-600 mx-auto" />
@@ -236,7 +263,14 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
           </div>
         </div>
       ) : (
-        <>
+        <div id="printable-timetable-area" className="p-4 bg-slate-950 print:bg-white rounded-xl">
+          {/* MINESEC Official Bilingual Header */}
+          <OfficialSchoolHeader
+            schoolName={school.name}
+            academicYear={academicYear.year}
+            documentTitle={documentTitle}
+          />
+
           {activeTab === 'CLASS' && (
             <ClassTimetableGrid
               selectedSectionId={selectedSectionId}
@@ -274,8 +308,31 @@ export default function TimetableClient({ schoolId, initialData }: TimetableClie
               entries={entries}
             />
           )}
-        </>
+
+          {/* Official Principal Signature & Stamp Block Line */}
+          <div className="mt-8 pt-6 border-t border-slate-800 print:border-black flex items-center justify-between text-xs text-slate-400 print:text-black">
+            <div>
+              <p className="font-mono text-[10px]">
+                Generated by Cameroon School Timetable SaaS Engine • {new Date().toLocaleDateString()}
+              </p>
+            </div>
+            <div className="text-right space-y-8">
+              <p className="font-bold uppercase tracking-wider text-xs">
+                Principal's Signature & Stamp:
+              </p>
+              <div className="w-64 border-b-2 border-slate-600 print:border-black inline-block" />
+            </div>
+          </div>
+        </div>
       )}
+
+      {/* Export & Print Modal */}
+      <ExportPdfModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        documentTitle={documentTitle}
+        elementIdToExport="printable-timetable-area"
+      />
     </div>
   );
 }

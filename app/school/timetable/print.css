@@ -1,0 +1,47 @@
+@media print {
+  /* Force light background and high contrast black text for physical printing */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: Arial, sans-serif !important;
+  }
+
+  /* Hide sidebar navigation, top headers, action buttons, and non-printable elements */
+  aside,
+  nav,
+  header,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Ensure print area occupies full width of physical paper */
+  #printable-timetable-area,
+  .print-area {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Force borders and clear cell text colors for print */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  th, td {
+    border: 1px solid #000000 !important;
+    color: #000000 !important;
+    background: #ffffff !important;
+  }
+
+  /* Configure landscape paper printing */
+  @page {
+    size: A3 landscape;
+    margin: 10mm;
+  }
+}
