@@ -18,6 +18,8 @@ import {
 
 const WHATSAPP_URL = 'https://wa.me/237654087582?text=Hello%20Neurivex%20Group!%20I%20want%20to%20manage/renew%20the%20subscription%20for%20my%20school.';
 
+export const dynamic = 'force-dynamic';
+
 export default async function SchoolDashboardPage() {
   const school = await getAuthenticatedSchool();
   const schoolId = school?.id || '';

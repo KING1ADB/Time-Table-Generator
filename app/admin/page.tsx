@@ -2,8 +2,21 @@ import Link from 'next/link';
 import { getPlatformMetricsAction } from '@/lib/actions/superAdminActions';
 import { School, Users, Zap, CheckCircle2, Plus, ArrowRight, ShieldCheck } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AdminDashboardPage() {
-  const metrics = await getPlatformMetricsAction();
+  let metrics = {
+    totalSchools: 0,
+    activeSchools: 0,
+    totalTeachers: 0,
+    totalTimetables: 0,
+  };
+
+  try {
+    metrics = await getPlatformMetricsAction();
+  } catch (err) {
+    console.error('AdminDashboardPage fetch error:', err);
+  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">

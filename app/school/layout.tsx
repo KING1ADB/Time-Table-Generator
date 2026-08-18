@@ -11,7 +11,13 @@ export default async function SchoolLayout({ children }: { children: React.React
     redirect('/login');
   }
 
-  const school = await getAuthenticatedSchool();
+  let school: any = null;
+  try {
+    school = await getAuthenticatedSchool();
+  } catch (err) {
+    console.error('SchoolLayout tenant lookup warning:', err);
+  }
+
   const schoolName = school?.name || 'School Workspace';
   const schoolType = school?.type || 'BILINGUAL';
   const userEmail = session.user.email || 'school.admin@minesec.gov.cm';
